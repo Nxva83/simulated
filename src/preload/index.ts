@@ -13,6 +13,38 @@ const api: EpikodiApi = {
     return () => ipcRenderer.removeListener(IPC.openFile, listener);
   },
   platform: process.platform,
+
+  library: {
+    registerFile: (path) => ipcRenderer.invoke(IPC.libraryRegisterFile, path),
+    list: (opts) => ipcRenderer.invoke(IPC.libraryList, opts ?? {}),
+    search: (q, limit) => ipcRenderer.invoke(IPC.librarySearch, q, limit),
+    file: (id) => ipcRenderer.invoke(IPC.libraryFile, id),
+  },
+  playback: {
+    get: (ref) => ipcRenderer.invoke(IPC.playbackGet, ref),
+    resumePosition: (ref) => ipcRenderer.invoke(IPC.playbackResume, ref),
+    started: (ref, duration) => ipcRenderer.invoke(IPC.playbackStarted, ref, duration),
+    progress: (ref, position, duration) =>
+      ipcRenderer.invoke(IPC.playbackProgress, ref, position, duration),
+    setWatched: (ref, watched) => ipcRenderer.invoke(IPC.playbackSetWatched, ref, watched),
+    setFavorite: (ref, favorite) => ipcRenderer.invoke(IPC.playbackSetFavorite, ref, favorite),
+    setRating: (ref, rating) => ipcRenderer.invoke(IPC.playbackSetRating, ref, rating),
+    inProgress: (limit) => ipcRenderer.invoke(IPC.playbackInProgress, limit),
+    recent: (limit) => ipcRenderer.invoke(IPC.playbackRecent, limit),
+  },
+  settings: {
+    get: (key, fallback) => ipcRenderer.invoke(IPC.settingsGet, key, fallback),
+    set: (key, value) => ipcRenderer.invoke(IPC.settingsSet, key, value),
+  },
+  sources: {
+    list: () => ipcRenderer.invoke(IPC.sourcesList),
+    add: (path, kind) => ipcRenderer.invoke(IPC.sourcesAdd, path, kind),
+    remove: (id) => ipcRenderer.invoke(IPC.sourcesRemove, id),
+  },
+  db: {
+    backup: () => ipcRenderer.invoke(IPC.dbBackup),
+    restore: () => ipcRenderer.invoke(IPC.dbRestore),
+  },
 };
 
 contextBridge.exposeInMainWorld('epikodi', api);

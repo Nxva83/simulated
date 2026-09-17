@@ -100,6 +100,16 @@ export class Transcoder {
     });
 
     const stdout = child.stdout!;
+    let closed = false;
+    const finish = (fn: () => void) => {
+      if (closed) return;
+      closed = true;
+      try {
+        fn();
+      } catch {
+        /* flux déjà fermé côté consommateur */
+      }
+    };
     return new ReadableStream<Uint8Array>({
       start(controller) {
         // Binaire absent ou non exécutable : on ferme le flux en erreur plutôt que de bloquer.
@@ -107,23 +117,24 @@ export class Transcoder {
           console.error(
             `[transcode] impossible de lancer ffmpeg (${ffmpegPath()}): ${err.message}`,
           );
+          finish(() => controller.error(err));
+        });
+        // Un chunk peut arriver après l'annulation par Chromium (seek, changement de fichier) :
+        // enqueue lèverait alors une exception non rattrapée dans le processus principal.
+        stdout.on('data', (chunk: Buffer) => {
+          if (closed) return;
           try {
-            controller.error(err);
+            controller.enqueue(new Uint8Array(chunk));
           } catch {
-            /* déjà fermé */
+            closed = true;
+            child.kill('SIGKILL');
           }
         });
-        stdout.on('data', (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)));
-        stdout.on('end', () => {
-          try {
-            controller.close();
-          } catch {
-            /* déjà fermé */
-          }
-        });
-        stdout.on('error', (err) => controller.error(err));
+        stdout.on('end', () => finish(() => controller.close()));
+        stdout.on('error', (err) => finish(() => controller.error(err)));
       },
       cancel() {
+        closed = true;
         child.kill('SIGKILL');
       },
     });

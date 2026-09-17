@@ -4,6 +4,7 @@ import { access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { IPC } from '@shared/ipc';
 import { dialogFilters, isSupported } from '@shared/mediaFormats';
+import { registerLibraryIpc } from './libraryIpc';
 import { inspectMedia } from './mediaInspect';
 import { installMediaProtocol, registerMediaScheme } from './mediaProtocol';
 
@@ -27,6 +28,15 @@ let mainWindow: BrowserWindow | null = null;
 let pendingFile: string | null = null;
 
 registerMediaScheme();
+
+// Une exception non rattrapée dans le processus principal ouvre une boîte de dialogue modale qui
+// bloque la boucle d'événements : on la journalise et on continue (en smoke, elle fait échouer la CI).
+process.on('uncaughtException', (err) => {
+  console.error('[main] exception non rattrapée :', err);
+  if (isSmoke) {
+    smokeLog(`SMOKE_CONSOLE [main-exception] ${err.message}`);
+  }
+});
 
 function mediaFileFromArgs(argv: string[]): string | null {
   const candidate = argv.slice(isDev ? 2 : 1).find((a) => !a.startsWith('-') && isSupported(a));
@@ -64,7 +74,10 @@ async function smokeSeekTo(seconds: number): Promise<void> {
 }
 
 async function reportSmokeMedia(): Promise<void> {
-  const r = (await mainWindow?.webContents.executeJavaScript(`(() => {
+  const timeout = new Promise<string>((res) => setTimeout(() => res('timeout'), 5000));
+  const r = await Promise.race([
+    timeout,
+    mainWindow?.webContents.executeJavaScript(`(() => {
     const v = document.querySelector('video');
     if (!v) return 'no-video';
     return 'audio=' + (v.webkitAudioDecodedByteCount ?? 0) +
@@ -75,7 +88,8 @@ async function reportSmokeMedia(): Promise<void> {
       ' ready=' + v.readyState + ' net=' + v.networkState + ' paused=' + v.paused +
       ' error=' + (v.error ? v.error.code : 0) +
       ' text="' + (document.querySelector('.stage .text')?.textContent ?? '') + '"';
-  })()`)) as string;
+  })()`) as Promise<string>,
+  ]);
   smokeLog(`SMOKE_MEDIA ${r}`);
   setTimeout(() => app.quit(), 200);
 }
@@ -98,6 +112,17 @@ function createWindow(): void {
   });
 
   mainWindow.on('ready-to-show', () => mainWindow?.show());
+  if (isSmoke) {
+    // En smoke, la console du renderer est relayée : indispensable pour diagnostiquer en CI.
+    mainWindow.webContents.on('console-message', (event) => {
+      if (event.level === 'error' || event.level === 'warning') {
+        smokeLog(`SMOKE_CONSOLE [${event.level}] ${event.message}`);
+      }
+    });
+    mainWindow.webContents.on('render-process-gone', (_e, details) => {
+      smokeLog(`SMOKE_CONSOLE [gone] ${details.reason}`);
+    });
+  }
   mainWindow.webContents.on('did-finish-load', () => {
     if (pendingFile) {
       mainWindow?.webContents.send(IPC.openFile, pendingFile);
@@ -164,6 +189,7 @@ if (!isSmoke && !app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     installMediaProtocol();
+    registerLibraryIpc();
     pendingFile = mediaFileFromArgs(process.argv);
     createWindow();
     app.on('activate', () => {

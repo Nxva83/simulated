@@ -58,8 +58,18 @@ function SeekBar({
 }
 
 export default function PlayerView({ requestedFile, active }: Props) {
-  const { videoRef, state, open, stop, togglePlayPause, seek, seekBy, setVolume, toggleMute } =
-    usePlayer();
+  const {
+    videoRef,
+    state,
+    open,
+    stop,
+    togglePlayPause,
+    seek,
+    seekBy,
+    setVolume,
+    toggleMute,
+    toggleFavorite,
+  } = usePlayer();
   const rootRef = useRef<HTMLDivElement>(null);
   const hasMedia = state.status !== 'no-media' && state.status !== 'error';
 
@@ -98,6 +108,10 @@ export default function PlayerView({ requestedFile, active }: Props) {
       case 'm':
       case 'M':
         toggleMute();
+        break;
+      case 'f':
+      case 'F':
+        void toggleFavorite();
         break;
       case 'o':
       case 'O':
@@ -141,9 +155,10 @@ export default function PlayerView({ requestedFile, active }: Props) {
           </button>
         </div>
       )}
-      {state.warning && state.status !== 'error' && (
+      {(state.warning || state.resumedFrom > 0) && state.status !== 'error' && (
         <div className="warning" role="status">
-          ℹ {state.warning}
+          {state.resumedFrom > 0 && <div>↻ Reprise à {formatTime(state.resumedFrom)}</div>}
+          {state.warning && <div>ℹ {state.warning}</div>}
         </div>
       )}
       <div className="controls">
@@ -169,6 +184,14 @@ export default function PlayerView({ requestedFile, active }: Props) {
             {formatTime(state.position)} / {formatTime(state.duration)}
           </span>
           <span className="filename">{hasMedia ? fileName : ''}</span>
+          <button
+            className="icon-btn"
+            disabled={!state.ref}
+            onClick={() => void toggleFavorite()}
+            title="Favori (F)"
+          >
+            {state.favorite ? '★' : '☆'}
+          </button>
           <button className="icon-btn" onClick={toggleMute} title="Muet (M)">
             {state.muted || state.volume === 0 ? '🔇' : '🔊'}
           </button>

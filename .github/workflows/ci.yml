@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -51,6 +51,7 @@ jobs:
         env:
           # Sous Linux : écran virtuel, pas de sandbox ; sans carte son, Chromium utilise une sortie audio nulle.
           RUN: ${{ runner.os == 'Linux' && 'xvfb-run --auto-servernum' || '' }}
+          EPIKODI_DB_PATH: smoke-epikodi.db
           FLAGS: ${{ runner.os == 'Linux' && '--no-sandbox --disable-audio-output' || '' }}
         run: |
           smoke() {
@@ -65,6 +66,8 @@ jobs:
           grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]' smoke.txt
           smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4
           grep -E 'seekable=3' smoke.txt
+          # 4) La bibliothèque SQLite a bien enregistré les deux fichiers et leur état de lecture.
+          node -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('smoke-epikodi.db'); const f=db.prepare('select count(*) c from media_files').get().c; const p=db.prepare('select count(*) c from playback_state').get().c; console.log('media_files='+f+' playback_state='+p); process.exit(f===2&&p===2?0:1)"
 
       - name: Package (sans installateur)
         run: npx electron-builder --dir

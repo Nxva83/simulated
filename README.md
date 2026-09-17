@@ -35,7 +35,8 @@ l'[ADR 0001](docs/adr/0001-choix-stack.md) fondé sur un [benchmark Electron / T
   `ffmpeg-static`
 - Outillage : ESLint, Prettier, Husky + lint-staged, Vitest, electron-builder
 - Intégrations externes : APIs REST (TheMovieDB, etc.)
-- Métadonnées : base de données locale (SQLite) — à venir
+- Bibliothèque et état de lecture : **SQLite** via `node:sqlite` (intégré à Node 24 / Electron 44,
+  aucun module natif à recompiler), migrations versionnées, recherche plein texte FTS5
 
 ## Démarrer
 
@@ -58,7 +59,11 @@ npm run build && npx electron . ~/Vidéos/film.mkv   # ouvre directement le lect
 ```
 
 Dans la section **Lecteur** : `Ctrl+O` ouvrir un fichier, `Espace` lecture/pause, `←`/`→` ±10 s,
-`↑`/`↓` volume, `M` muet, clic sur la vidéo = pause, double-clic = ouvrir.
+`↑`/`↓` volume, `M` muet, `F` favori, clic sur la vidéo = pause, double-clic = ouvrir.
+
+Chaque fichier ouvert est enregistré dans la bibliothèque (`<userData>/epikodi.db`) : la lecture
+**reprend où elle s'était arrêtée**, un média lu à plus de 90 % est marqué **vu**, le volume et les
+favoris sont mémorisés.
 
 Chromium décode nativement H.264, VP9, AV1, AAC, MP3, FLAC, Opus — mais **pas** AC3/E-AC3/DTS,
 ni MPEG-2, DivX/Xvid, VC-1, ni HEVC sans décodeur matériel. Le lecteur inspecte le fichier avant
@@ -87,6 +92,8 @@ npm run dist                                       # AppImage/deb, NSIS, dmg
 ├── src/
 │   ├── main/                 Processus principal : fenêtre, protocole media:// (fichiers avec Range,
 │   │                         flux ffmpeg transcodé), IPC, inspection des codecs
+│   ├── main/db/              SQLite : migrations versionnées, dépôts (fichiers, lecture, réglages,
+│   │                         sources), recherche FTS5, sauvegarde / restauration
 │   ├── preload/              Pont sécurisé (contextBridge) → window.epikodi
 │   ├── shared/               Code partagé main/renderer : formats, erreurs, codecs, contrat IPC
 │   └── renderer/src/         UI React : App, Sidebar, PlayerView, hook usePlayer

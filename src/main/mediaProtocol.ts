@@ -29,6 +29,7 @@ export function registerMediaScheme(): void {
 export function installMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
     const { host, filePath, start, video } = parseMediaUrl(request.url);
+    if (process.env.EPIKODI_TRACE === '1') console.log(`[media] ${host} t=${start} v=${video}`);
     if (!isSupported(filePath)) {
       return new Response('Format non pris en charge', { status: 415 });
     }
