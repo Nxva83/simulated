@@ -24,16 +24,84 @@ L'application se veut entierement personnalisable : extensions, themes, connecte
 - Architecture extensible via un systeme de plugins
 - Interface utilisateur dynamique et personnalisable
 
-## Stack technologique envisagee
+## Stack technologique
 
-- Interface : Electron / Qt / Tauri
-- Traitement multimedia : FFmpeg
-- Integrations externes : APIs REST (TheMovieDB, etc.)
-- Metadonnees : base de donnees locale
+Décision consignée dans l'[ADR 0001](docs/adr/0001-choix-stack.md), fondée sur un
+[benchmark comparatif](docs/benchmark-stack.md) Electron / Tauri / Qt.
+
+- Langage : **C++17**
+- Interface : **Qt 6 (≥ 6.5)** — QML / Qt Quick Controls 2, style `Basic` (identique sur les 3 OS)
+- Traitement multimédia : **Qt Multimedia** (backend FFmpeg)
+- Build : **CMake ≥ 3.25 + Ninja**, presets `debug` / `release` / `ci`
+- Tests : **Qt Test + CTest**
+- Intégrations externes : APIs REST (TheMovieDB, etc.) via QtNetwork
+- Métadonnées : base de données locale (SQLite)
+
+## Démarrer
+
+### Prérequis
+
+- Qt 6.5+ avec les modules Core, Gui, Qml, Quick, QuickControls2, Test
+- CMake 3.25+, Ninja, un compilateur C++17 (GCC 12+, Clang 15+, MSVC 2022)
+- `clang-format` (formatage, vérifié par le hook de pre-commit et la CI)
+
+### Développement (hot-reload QML)
+
+```bash
+git clone git@github.com:Nxva83/simulated.git && cd simulated
+./scripts/setup-hooks.sh      # active le hook pre-commit (clang-format)
+./scripts/dev.sh              # configure + build Debug + lance l'app
+```
+
+En build **Debug**, l'application charge les `.qml` depuis `src/ui/` et **recharge la fenêtre
+automatiquement à chaque sauvegarde** (`src/app/QmlHotReloader`). En Release, les QML sont
+compilés et embarqués dans le binaire.
+
+### Build Release et tests
+
+```bash
+cmake --preset release && cmake --build --preset release
+cmake --preset ci && cmake --build --preset ci && ctest --preset ci   # warnings = erreurs
+```
+
+## Arborescence
+
+```
+.
+├── CMakeLists.txt          Projet racine (options, warnings, Qt)
+├── CMakePresets.json       Presets debug / release / ci
+├── src/
+│   ├── main.cpp            Point d'entrée
+│   ├── app/                Infrastructure applicative (QmlHotReloader…)
+│   ├── core/               Bibliothèque `epikodi_core` : logique métier sans UI (Version…)
+│   └── ui/                 Module QML `Epikodi.Ui` (Main.qml, components/)
+├── assets/                 Icônes, polices, images embarquées
+├── tests/                  Tests Qt Test (une cible par fichier, `epikodi_add_test`)
+├── docs/
+│   ├── adr/                Architecture Decision Records
+│   └── benchmark-stack.md  Benchmark Electron / Tauri / Qt
+├── benchmark/              Sources du benchmark de stack (reproductible)
+├── scripts/                dev.sh, setup-hooks.sh
+├── .githooks/              pre-commit : clang-format sur les fichiers indexés
+└── .github/workflows/      CI : build + tests sur Ubuntu, Windows, macOS + vérification du format
+```
+
+## Conventions
+
+- **C++** : style `.clang-format` (base LLVM, 4 espaces, 100 colonnes, `Type* ptr`), namespace
+  `epikodi`, un composant = `Nom.h` + `Nom.cpp`. `clang-tidy` configuré (`.clang-tidy`).
+- **QML** : un composant par fichier en `PascalCase.qml`, 2 espaces, propriétés `required`
+  pour les données de délégué, pas de logique métier dans le QML (elle vit dans `core/`).
+- **Dépendances entre couches** : `ui` → `app` → `core`. `core` ne dépend jamais de Qt Quick.
+- **Tests** : tout ce qui est dans `core/` est testable sans UI ; un `test_<sujet>.cpp` par sujet.
+- **Commits** : [Conventional Commits](https://www.conventionalcommits.org/fr/) en français
+  (`feat:`, `fix:`, `docs:`, `build:`, `ci:`, `test:`), référence à l'issue en fin de sujet.
+- **Décisions** : toute décision d'architecture structurante fait l'objet d'un ADR dans `docs/adr/`.
 
 ## Statut
 
-Projet en cours de conception (v1). Ce depot sert de base au projet professionnel simule.
+**v0.1 — Fondations** (issue #1) : stack choisie, squelette Qt/CMake, hot-reload, tests, CI.
+Prochaine étape : v1 — MVP (lecteur, indexation, base de métadonnées, bibliothèque).
 
 ## Licence
 

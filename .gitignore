@@ -150,3 +150,6 @@ benchmark/electron/out/
 benchmark/results/*.log
 benchmark/electron/common/
 __pycache__/
+
+# Build CMake
+build/

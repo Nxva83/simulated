@@ -1,0 +1,11 @@
+// Genere par CMake a partir de Version.cpp.in — ne pas editer.
+#include "core/Version.h"
+
+namespace epikodi {
+
+const char* version() noexcept { return "@PROJECT_VERSION@"; }
+int versionMajor() noexcept { return @PROJECT_VERSION_MAJOR@; }
+int versionMinor() noexcept { return @PROJECT_VERSION_MINOR@; }
+int versionPatch() noexcept { return @PROJECT_VERSION_PATCH@; }
+
+} // namespace epikodi
