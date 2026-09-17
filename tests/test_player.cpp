@@ -5,7 +5,14 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include <chrono>
+
 using epikodi::Player;
+using namespace std::chrono_literals;
+
+// Attend qu'une condition devienne vraie (portable : QTRY_* declenche -Wconversion sur Qt 6.9).
+#define WAIT_FOR(cond, timeout)                                                                    \
+    QVERIFY(QTest::qWaitFor([&] { return static_cast<bool>(cond); }, timeout))
 
 namespace {
 QUrl fixture(const char* name) {
@@ -15,8 +22,7 @@ QUrl fixture(const char* name) {
 // Charge un fichier et attend que le backend l'ait analyse (ou rejete).
 void loadAndWait(Player& p, const char* name) {
     p.setSource(fixture(name));
-    QTRY_VERIFY_WITH_TIMEOUT(
-        p.status() == Player::Status::Loaded || p.status() == Player::Status::Error, 10000);
+    WAIT_FOR(p.status() == Player::Status::Loaded || p.status() == Player::Status::Error, 10000);
 }
 } // namespace
 
@@ -74,13 +80,13 @@ private slots:
         loadAndWait(p, "pattern-h264-aac.mp4");
         QCOMPARE(p.status(), Player::Status::Loaded);
         p.seek(1500);
-        QTRY_VERIFY_WITH_TIMEOUT(qAbs(p.position() - 1500) < 250, 5000);
+        WAIT_FOR(qAbs(p.position() - 1500) < 250, 5s);
         p.seekBy(-1000);
-        QTRY_VERIFY_WITH_TIMEOUT(qAbs(p.position() - 500) < 250, 5000);
+        WAIT_FOR(qAbs(p.position() - 500) < 250, 5s);
         p.seek(-42); // borne basse
-        QTRY_VERIFY_WITH_TIMEOUT(p.position() < 250, 5000);
+        WAIT_FOR(p.position() < 250, 5s);
         p.seek(99999); // borne haute
-        QTRY_VERIFY_WITH_TIMEOUT(p.position() >= p.duration() - 250, 5000);
+        WAIT_FOR(p.position() >= p.duration() - 250, 5s);
     }
 
     void volumeIsClampedAndRoundTrips() {
@@ -98,16 +104,18 @@ private slots:
 
     void playsAndAdvances() {
         if (QMediaDevices::defaultAudioOutput().isNull()) {
-            QSKIP("Pas de sortie audio : lecture non testable sur cette machine.");
+            QTest::qSkip("Pas de sortie audio : lecture non testable sur cette machine.", __FILE__,
+                         __LINE__);
+            return;
         }
         Player p;
         loadAndWait(p, "pattern-h264-aac.mp4");
         QCOMPARE(p.status(), Player::Status::Loaded);
         p.play();
-        QTRY_VERIFY_WITH_TIMEOUT(p.playing(), 5000);
-        QTRY_VERIFY_WITH_TIMEOUT(p.position() > 300, 5000);
+        WAIT_FOR(p.playing(), 5s);
+        WAIT_FOR(p.position() > 300, 5s);
         p.pause();
-        QTRY_VERIFY_WITH_TIMEOUT(!p.playing(), 5000);
+        WAIT_FOR(!p.playing(), 5s);
         const qint64 paused = p.position();
         QTest::qWait(300);
         QVERIFY(qAbs(p.position() - paused) < 100);
