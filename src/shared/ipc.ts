@@ -1,4 +1,5 @@
 import type { MediaInfo } from './codecs';
+import type { MediaUrlOptions } from './mediaUrl';
 
 /** Contrat IPC partagé entre main, preload et renderer. */
 export const IPC = {
@@ -15,10 +16,10 @@ export interface EpikodiApi {
   /** Ouvre le dialogue système et retourne le chemin choisi, ou null. */
   openFileDialog(): Promise<string | null>;
   fileExists(path: string): Promise<boolean>;
-  /** Codecs présents dans le conteneur + avertissement éventuel (piste audio non décodable). */
+  /** Codecs présents dans le conteneur et ce que Chromium peut en décoder. */
   inspectMedia(path: string): Promise<MediaInfo>;
   /** Convertit un chemin local en URL lisible par <video>/<audio> (voir shared/mediaUrl.ts). */
-  toMediaUrl(path: string, opts?: { transcode?: boolean; start?: number }): string;
+  toMediaUrl(path: string, opts?: MediaUrlOptions): string;
   /** Abonnement aux fichiers à ouvrir (argument CLI, association de fichiers). */
   onOpenFile(cb: (path: string) => void): () => void;
   platform: 'linux' | 'win32' | 'darwin' | string;

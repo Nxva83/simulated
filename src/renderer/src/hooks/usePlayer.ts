@@ -1,6 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { probeContentType, transcodeNotice, type MediaInfo } from '@shared/codecs';
 import { messageForMediaError, preflightError } from '@shared/playerErrors';
 import { isAudio } from '@shared/mediaFormats';
+
+/**
+ * Un codec « hardware-only » (HEVC) n'est décodé que si la machine a un décodeur matériel :
+ * on interroge MediaCapabilities plutôt que de découvrir un écran noir.
+ */
+async function canDecodeVideo(info: MediaInfo): Promise<boolean> {
+  if (info.videoSupport === 'unsupported') return false;
+  const contentType = probeContentType(info.videoCodec);
+  if (!contentType) return true;
+  try {
+    const r = await navigator.mediaCapabilities.decodingInfo({
+      type: 'file',
+      video: { contentType, width: 1920, height: 1080, bitrate: 8_000_000, framerate: 30 },
+    });
+    return r.supported;
+  } catch {
+    return true;
+  }
+}
 
 export type PlayerStatus = 'no-media' | 'loading' | 'ready' | 'ended' | 'error';
 
@@ -45,7 +65,9 @@ export function usePlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<PlayerState>(initial);
   // Contexte du média courant, hors état React (lu dans les handlers d'événements).
-  const media = useRef({ path: '', transcode: false, offset: 0, duration: 0 });
+  const media = useRef({ path: '', transcode: false, video: false, offset: 0, duration: 0 });
+  // load() est défini plus bas ; le handler d'erreur (installé une fois) l'atteint via ce ref.
+  const loadRef = useRef<(start: number) => void>(() => {});
   const patch = (p: Partial<PlayerState>) => setState((s) => ({ ...s, ...p }));
 
   // Synchronisation avec les événements du <video>.
@@ -72,13 +94,29 @@ export function usePlayer() {
       on('pause', () => patch({ playing: false })),
       on('ended', () => patch({ playing: false, status: 'ended' })),
       on('volumechange', () => patch({ volume: v.volume, muted: v.muted })),
-      on('error', () =>
+      on('error', () => {
+        const m = media.current;
+        const code = v.error?.code ?? 0;
+        // Dernier recours : Chromium ne décode pas ce flux et ffmpeg n'a pas encore tout converti
+        // (conteneur inconnu de l'inspection, codec mal identifié…) → transcodage complet.
+        if (m.path && !(m.transcode && m.video) && (code === 3 || code === 4)) {
+          m.transcode = true;
+          m.video = true;
+          patch({
+            transcoding: true,
+            duration: m.duration,
+            warning:
+              'Format non décodé nativement : conversion à la volée en H.264/AAC (sollicite le processeur).',
+          });
+          loadRef.current(m.offset);
+          return;
+        }
         patch({
           status: 'error',
           playing: false,
-          errorMessage: messageForMediaError(v.error?.code ?? 0, v.error?.message || undefined),
-        }),
-      ),
+          errorMessage: messageForMediaError(code, v.error?.message || undefined),
+        });
+      }),
     ];
     return () => offs.forEach((off) => off());
   }, []);
@@ -89,12 +127,16 @@ export function usePlayer() {
     const m = media.current;
     if (!v) return;
     m.offset = m.transcode ? start : 0;
-    v.src = window.epikodi.toMediaUrl(m.path, { transcode: m.transcode, start });
+    v.src = window.epikodi.toMediaUrl(m.path, { transcode: m.transcode, video: m.video, start });
     if (!m.transcode && start > 0) v.currentTime = start;
     v.play().catch(() => {
       // L'événement 'error' du <video> porte déjà le diagnostic ; un refus d'autoplay est bénin.
     });
   }, []);
+
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
   const open = useCallback(
     async (path: string) => {
@@ -117,9 +159,12 @@ export function usePlayer() {
       if (!(await window.epikodi.fileExists(path))) return fail(`Fichier introuvable : ${path}`);
 
       const info = await window.epikodi.inspectMedia(path);
+      const transcodeVideo = !isAudio(path) && !(await canDecodeVideo(info));
+      const transcode = info.transcodeAudio || transcodeVideo;
       media.current = {
         path,
-        transcode: info.needsTranscode,
+        transcode,
+        video: transcodeVideo,
         offset: 0,
         duration: info.duration ?? 0,
       };
@@ -127,11 +172,11 @@ export function usePlayer() {
         status: 'loading',
         path,
         position: 0,
-        duration: info.needsTranscode ? (info.duration ?? 0) : 0,
+        duration: transcode ? (info.duration ?? 0) : 0,
         hasVideo: !isAudio(path),
         errorMessage: '',
-        warning: info.warning,
-        transcoding: info.needsTranscode,
+        warning: transcodeNotice(info.transcodeAudio, transcodeVideo, info),
+        transcoding: transcode,
       });
       load(0);
     },

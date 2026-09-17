@@ -7,7 +7,7 @@ describe('media:// URL', () => {
     const url = toMediaUrl(path);
     expect(url).toMatch(/^media:\/\/local\//);
     expect(url).not.toContain(' ');
-    expect(parseMediaUrl(url)).toEqual({ host: 'local', filePath: path, start: 0 });
+    expect(parseMediaUrl(url)).toEqual({ host: 'local', filePath: path, start: 0, video: false });
   });
 
   it('encode et décode un chemin Windows', () => {
@@ -27,7 +27,11 @@ describe('media:// URL', () => {
       host: 'transcode',
       filePath: '/films/a.mkv',
       start: 42.5,
+      video: false,
     });
+    const withVideo = toMediaUrl('/films/a.mkv', { transcode: true, video: true, start: 3 });
+    expect(parseMediaUrl(withVideo)).toMatchObject({ start: 3, video: true });
+    expect(parseMediaUrl(toMediaUrl('/films/a.mkv', { video: true })).video).toBe(false);
     expect(parseMediaUrl(toMediaUrl('/films/a.mkv', { transcode: true })).start).toBe(0);
     expect(parseMediaUrl('media://transcode/films/a.mkv?t=abc').start).toBe(0);
   });

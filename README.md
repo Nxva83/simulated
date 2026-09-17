@@ -60,11 +60,12 @@ npm run build && npx electron . ~/Vidéos/film.mkv   # ouvre directement le lect
 Dans la section **Lecteur** : `Ctrl+O` ouvrir un fichier, `Espace` lecture/pause, `←`/`→` ±10 s,
 `↑`/`↓` volume, `M` muet, clic sur la vidéo = pause, double-clic = ouvrir.
 
-Codecs décodés nativement par Chromium : H.264, HEVC, VP9, AV1 ; AAC, MP3, FLAC, Opus.
-**AC3 / E-AC3 / DTS** ne le sont pas : le lecteur détecte la piste avant lecture
-(`src/main/mediaInspect.ts`) et la **convertit à la volée en AAC** avec le ffmpeg embarqué
-(`ffmpeg-static`, vidéo copiée sans réencodage, `src/main/transcoder.ts`). Dans ce mode le seek
-relance le flux à la position voulue (~1 s). Un bandeau l'indique.
+Chromium décode nativement H.264, VP9, AV1, AAC, MP3, FLAC, Opus — mais **pas** AC3/E-AC3/DTS,
+ni MPEG-2, DivX/Xvid, VC-1, ni HEVC sans décodeur matériel. Le lecteur inspecte le fichier avant
+lecture (`src/main/mediaInspect.ts`) et, seulement si nécessaire, **convertit à la volée** avec le
+ffmpeg embarqué (`ffmpeg-static`, `src/main/transcoder.ts`) : audio → AAC, vidéo copiée ou
+réencodée en H.264. Dans ce mode le seek relance le flux à la position voulue (~1 s) et un bandeau
+l'indique. Résultat : MKV, MP4, AVI, WMV, TS, MP3, FLAC… se lisent, avec le son.
 
 ### Qualité, tests, packaging
 

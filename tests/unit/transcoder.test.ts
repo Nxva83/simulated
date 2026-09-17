@@ -16,6 +16,13 @@ describe('transcoder', () => {
     expect(args.at(-1)).toBe('pipe:1');
   });
 
+  it('réencode la vidéo en H.264 seulement sur demande', () => {
+    const args = transcodeArgs('/films/a.mkv', 0, true).join(' ');
+    expect(args).toContain('-c:v libx264');
+    expect(args).not.toContain('-c:v copy');
+    expect(args).toContain('-pix_fmt yuv420p');
+  });
+
   it('place -ss avant -i pour un seek rapide', () => {
     const args = transcodeArgs('/films/a.mkv', 12.345);
     expect(args.indexOf('-ss')).toBeLessThan(args.indexOf('-i'));

@@ -8,11 +8,27 @@ export function ffmpegPath(): string {
 }
 
 /**
- * Arguments ffmpeg pour rendre lisible par Chromium un fichier dont la piste audio n'est pas
- * décodée (AC3/E-AC3/DTS…) : vidéo copiée telle quelle (aucun réencodage, CPU bas), audio
- * converti en AAC stéréo, conteneur Matroska en mode « live » écrit sur stdout.
+ * Arguments ffmpeg pour rendre lisible par Chromium un fichier qu'il ne décode pas :
+ *  - audio converti en AAC stéréo (AC3/E-AC3/DTS…) ;
+ *  - vidéo copiée telle quelle (aucun réencodage, CPU bas), ou réencodée en H.264 si `video`
+ *    (HEVC sans accélération matérielle, MPEG-2, DivX/Xvid…) ;
+ *  - conteneur Matroska en mode « live » écrit sur stdout.
  */
-export function transcodeArgs(filePath: string, startSeconds: number): string[] {
+export function transcodeArgs(filePath: string, startSeconds: number, video = false): string[] {
+  const videoArgs = video
+    ? [
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-tune',
+        'zerolatency',
+        '-crf',
+        '23',
+        '-pix_fmt',
+        'yuv420p',
+      ]
+    : ['-c:v', 'copy'];
   return [
     '-hide_banner',
     '-loglevel',
@@ -26,8 +42,7 @@ export function transcodeArgs(filePath: string, startSeconds: number): string[] 
     '0:a:0',
     '-sn',
     '-dn',
-    '-c:v',
-    'copy',
+    ...videoArgs,
     '-c:a',
     'aac',
     '-b:a',
@@ -68,9 +83,9 @@ export class Transcoder {
    * Démarre un nouveau flux. Un seul flux à la fois : une nouvelle demande (seek, autre
    * fichier) tue la précédente, Chromium ayant parfois déjà abandonné sans annuler.
    */
-  stream(filePath: string, startSeconds: number): ReadableStream<Uint8Array> {
+  stream(filePath: string, startSeconds: number, video = false): ReadableStream<Uint8Array> {
     this.killAll();
-    const child = spawn(ffmpegPath(), transcodeArgs(filePath, startSeconds), {
+    const child = spawn(ffmpegPath(), transcodeArgs(filePath, startSeconds, video), {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });

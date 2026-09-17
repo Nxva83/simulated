@@ -31,20 +31,25 @@ lint-staged, Vitest, electron-builder.
 
 | Vidéo | Audio |
 |---|---|
-| H.264 ✔ · **HEVC ✔** · VP9 ✔ · AV1 ✔ | AAC ✔ · MP3 ✔ · FLAC ✔ · Opus/Vorbis ✔ |
-| | **AC3 ✗ · E-AC3 ✗ · DTS ✗ · TrueHD ✗** |
+| H.264 ✔ · VP9 ✔ · AV1 ✔ | AAC ✔ · MP3 ✔ · FLAC ✔ · Opus/Vorbis ✔ |
+| **HEVC : uniquement avec décodeur matériel** (VAAPI, D3D11, VideoToolbox — les runners CI n'en ont pas) | **AC3 ✗ · E-AC3 ✗ · DTS ✗ · TrueHD ✗** |
+| **MPEG-2 ✗ · MPEG-4 ASP (DivX/Xvid) ✗ · VC-1/WMV ✗** | |
 
-Bonne surprise : HEVC est décodé (le benchmark supposait le contraire). Mauvaise : un MKV avec
-piste AC3/DTS — très courant — se lit **en silence, sans aucune erreur** (0 octet audio décodé).
+Sans mitigation, un MKV avec piste AC3/DTS — très courant — se lit **en silence, sans aucune
+erreur** (0 octet audio décodé), et un HEVC sans accélération donne un écran noir.
 
-### Mitigations mises en place
-- `src/main/mediaInspect.ts` lit les en-têtes du conteneur (`music-metadata`) avant lecture et
-  le lecteur affiche un bandeau : « Piste audio AC3 : Chromium ne la décode pas, la vidéo sera
-  lue sans son ».
-- **Transcodage audio à la volée** (issue #15, livré) : `src/main/transcoder.ts` lance le ffmpeg
-  embarqué (`ffmpeg-static`) avec `-c:v copy -c:a aac -f matroska -live 1` et sert le flux via
-  `media://transcode/…?t=<s>` ; le seek relance ffmpeg à la position demandée (`-ss` avant `-i`).
-  Vérifié en CI sur les 3 OS : le MKV HEVC/AC3 produit des octets audio décodés.
+### Mitigations mises en place (issue #15)
+- **Inspection avant lecture** (`src/main/mediaInspect.ts`) : `music-metadata` lit les en-têtes
+  (MKV, MP4, MP3, FLAC…), `ffmpeg -i` complète pour les autres conteneurs (AVI, TS, WMV…).
+- **Sonde de décodage** : pour HEVC, le renderer interroge `MediaCapabilities.decodingInfo` ;
+  les codecs jamais décodés (MPEG-2, Xvid, VC-1) sont connus d'avance.
+- **Transcodage à la volée** (`src/main/transcoder.ts`, `ffmpeg-static`) servi via
+  `media://transcode/…?t=<s>[&v=1]` : audio → AAC ; vidéo copiée, ou réencodée en H.264 (`v=1`)
+  seulement si nécessaire. Le seek relance ffmpeg à la position demandée (`-ss` avant `-i`).
+- **Dernier recours** : si `<video>` remonte quand même une erreur de décodage sur un flux non
+  (entièrement) transcodé, le lecteur relance en transcodage complet.
+- Vérifié en CI sur les 3 OS : le MKV HEVC/AC3 produit des octets audio **et** vidéo décodés,
+  y compris sur des runners sans accélération matérielle.
 - Le service des fichiers locaux gère lui-même les requêtes Range (`src/main/fileStream.ts`) :
   `net.fetch(file://)` ne les honore pas et rendait les médias non seekables.
 

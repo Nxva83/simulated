@@ -10,7 +10,7 @@ import { Transcoder } from './transcoder';
  * `file://` dans <video>. Les médias locaux passent donc par le schéma `media://` (voir
  * shared/mediaUrl.ts), servi ici par le processus principal :
  *   - media://local/…      fichier brut, servi avec les en-têtes Range (indispensables au seek) ;
- *   - media://transcode/…  flux ffmpeg (audio converti en AAC) quand Chromium ne décode pas la piste.
+ *   - media://transcode/…  flux ffmpeg (audio → AAC, vidéo copiée ou → H.264) quand Chromium ne décode pas.
  */
 
 const transcoder = new Transcoder();
@@ -28,12 +28,12 @@ export function registerMediaScheme(): void {
 /** À appeler après app.whenReady(). */
 export function installMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
-    const { host, filePath, start } = parseMediaUrl(request.url);
+    const { host, filePath, start, video } = parseMediaUrl(request.url);
     if (!isSupported(filePath)) {
       return new Response('Format non pris en charge', { status: 415 });
     }
     if (host === 'transcode') {
-      return new Response(transcoder.stream(filePath, start), {
+      return new Response(transcoder.stream(filePath, start, video), {
         status: 200,
         headers: {
           'Content-Type': 'video/x-matroska',
