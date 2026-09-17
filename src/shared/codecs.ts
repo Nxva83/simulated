@@ -15,15 +15,23 @@ export interface MediaInfo {
   container?: string;
   audioCodec?: string;
   videoCodec?: string;
-  /** Avertissement non bloquant à afficher, ou null. */
+  /** Durée en secondes lue dans l'en-tête du conteneur (nécessaire au seek en mode transcodé). */
+  duration?: number;
+  /** Vrai si la piste audio doit être convertie à la volée par ffmpeg (voir main/transcoder.ts). */
+  needsTranscode: boolean;
+  /** Information non bloquante à afficher, ou null. */
   warning: string | null;
 }
 
-export function warningForMediaInfo(
-  info: Pick<MediaInfo, 'audioCodec' | 'videoCodec'>,
-): string | null {
-  if (isAudioCodecUnsupported(info.audioCodec)) {
-    return `Piste audio ${info.audioCodec} : Chromium ne la décode pas, la vidéo sera lue sans son.`;
-  }
-  return null;
+export function describeMedia(
+  info: Pick<MediaInfo, 'audioCodec' | 'videoCodec' | 'container' | 'duration'>,
+): MediaInfo {
+  const needsTranscode = isAudioCodecUnsupported(info.audioCodec);
+  return {
+    ...info,
+    needsTranscode,
+    warning: needsTranscode
+      ? `Piste audio ${info.audioCodec} convertie à la volée (Chromium ne la décode pas) — le seek prend ~1 s.`
+      : null,
+  };
 }

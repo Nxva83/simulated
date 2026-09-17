@@ -41,8 +41,12 @@ piste AC3/DTS — très courant — se lit **en silence, sans aucune erreur** (0
 - `src/main/mediaInspect.ts` lit les en-têtes du conteneur (`music-metadata`) avant lecture et
   le lecteur affiche un bandeau : « Piste audio AC3 : Chromium ne la décode pas, la vidéo sera
   lue sans son ».
-- Suivi : issue de **transcodage audio à la volée** (ffmpeg `-c:v copy -c:a aac` servi par le
-  protocole `media://`) pour rendre ces fichiers réellement lisibles.
+- **Transcodage audio à la volée** (issue #15, livré) : `src/main/transcoder.ts` lance le ffmpeg
+  embarqué (`ffmpeg-static`) avec `-c:v copy -c:a aac -f matroska -live 1` et sert le flux via
+  `media://transcode/…?t=<s>` ; le seek relance ffmpeg à la position demandée (`-ss` avant `-i`).
+  Vérifié en CI sur les 3 OS : le MKV HEVC/AC3 produit des octets audio décodés.
+- Le service des fichiers locaux gère lui-même les requêtes Range (`src/main/fileStream.ts`) :
+  `net.fetch(file://)` ne les honore pas et rendait les médias non seekables.
 
 ### Performances (rappel du benchmark, même machine)
 

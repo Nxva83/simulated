@@ -17,8 +17,8 @@ export interface EpikodiApi {
   fileExists(path: string): Promise<boolean>;
   /** Codecs présents dans le conteneur + avertissement éventuel (piste audio non décodable). */
   inspectMedia(path: string): Promise<MediaInfo>;
-  /** Convertit un chemin local en URL lisible par <video>/<audio>. */
-  toMediaUrl(path: string): string;
+  /** Convertit un chemin local en URL lisible par <video>/<audio> (voir shared/mediaUrl.ts). */
+  toMediaUrl(path: string, opts?: { transcode?: boolean; start?: number }): string;
   /** Abonnement aux fichiers à ouvrir (argument CLI, association de fichiers). */
   onOpenFile(cb: (path: string) => void): () => void;
   platform: 'linux' | 'win32' | 'darwin' | string;

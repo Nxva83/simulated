@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAudioCodecUnsupported, warningForMediaInfo } from '@shared/codecs';
+import { describeMedia, isAudioCodecUnsupported } from '@shared/codecs';
 
 describe('codecs', () => {
   it('identifie les codecs audio que Chromium ne décode pas', () => {
@@ -20,8 +20,13 @@ describe('codecs', () => {
       expect(isAudioCodecUnsupported(c), String(c)).toBe(false);
     }
   });
-  it('produit un avertissement nommant le codec', () => {
-    expect(warningForMediaInfo({ audioCodec: 'AC3', videoCodec: 'HEVC' })).toMatch(/AC3/);
-    expect(warningForMediaInfo({ audioCodec: 'AAC', videoCodec: 'HEVC' })).toBeNull();
+  it('demande le transcodage et l’annonce quand la piste audio n’est pas décodable', () => {
+    const ac3 = describeMedia({ audioCodec: 'AC3', videoCodec: 'HEVC', duration: 30 });
+    expect(ac3.needsTranscode).toBe(true);
+    expect(ac3.warning).toMatch(/AC3/);
+    expect(ac3.duration).toBe(30);
+    const aac = describeMedia({ audioCodec: 'AAC', videoCodec: 'HEVC' });
+    expect(aac.needsTranscode).toBe(false);
+    expect(aac.warning).toBeNull();
   });
 });

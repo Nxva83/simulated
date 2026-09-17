@@ -3,7 +3,7 @@ import { parseFile } from 'music-metadata';
 // Valeurs de TrackType (Matroska) : 1 = vidéo, 2 = audio. L'enum n'est pas ré-exporté par le paquet.
 const TRACK_VIDEO = 1;
 const TRACK_AUDIO = 2;
-import { type MediaInfo, warningForMediaInfo } from '@shared/codecs';
+import { describeMedia, type MediaInfo } from '@shared/codecs';
 
 /** Lit les en-têtes du conteneur (sans décoder) pour connaître les codecs présents. */
 export async function inspectMedia(filePath: string): Promise<MediaInfo> {
@@ -12,14 +12,14 @@ export async function inspectMedia(filePath: string): Promise<MediaInfo> {
     const tracks = format.trackInfo ?? [];
     const audio = tracks.find((t) => t.type === TRACK_AUDIO);
     const video = tracks.find((t) => t.type === TRACK_VIDEO);
-    const info = {
+    return describeMedia({
       container: format.container,
       audioCodec: audio?.codecName ?? format.codec,
       videoCodec: video?.codecName,
-    };
-    return { ...info, warning: warningForMediaInfo(info) };
+      duration: format.duration,
+    });
   } catch {
     // Conteneur inconnu ou corrompu : on laisse <video> produire le diagnostic.
-    return { warning: null };
+    return { needsTranscode: false, warning: null };
   }
 }

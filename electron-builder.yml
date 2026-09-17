@@ -6,6 +6,8 @@ directories:
 files:
   - out/**
   - package.json
+asarUnpack:
+  - node_modules/ffmpeg-static/**
 linux:
   target: [AppImage, deb]
   category: AudioVideo

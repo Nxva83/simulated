@@ -38,14 +38,23 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # L'application s'ouvre, rend sa fenêtre et quitte : preuve qu'elle se lance sur l'OS.
+      # 1) L'application s'ouvre, rend sa fenêtre et quitte : preuve qu'elle se lance sur l'OS.
+      # 2) Le MKV HEVC/AC3 doit produire des octets audio décodés : preuve que le transcodage
+      #    ffmpeg (issue #15) fonctionne avec le binaire ffmpeg-static de la plateforme.
+      # 3) Le MP4 H.264/AAC natif doit être seekable (issue #2).
       - name: Smoke (Linux, écran virtuel)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum npx cross-env EPIKODI_SMOKE=1 npx electron . --no-sandbox | grep -q SMOKE_OK
+        run: |
+          xvfb-run --auto-servernum npx cross-env EPIKODI_SMOKE=1 npx electron . --no-sandbox | grep SMOKE_OK
+          xvfb-run --auto-servernum npx cross-env EPIKODI_SMOKE=1 EPIKODI_SMOKE_FILE=tests/fixtures/pattern-hevc-ac3.mkv npx electron . --no-sandbox | tee /dev/stderr | grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]'
+          xvfb-run --auto-servernum npx cross-env EPIKODI_SMOKE=1 EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4 npx electron . --no-sandbox | tee /dev/stderr | grep -E 'seekable=3'
       - name: Smoke (Windows / macOS)
         if: runner.os != 'Linux'
         shell: bash
-        run: npx cross-env EPIKODI_SMOKE=1 npx electron . | grep -q SMOKE_OK
+        run: |
+          npx cross-env EPIKODI_SMOKE=1 npx electron . | grep SMOKE_OK
+          npx cross-env EPIKODI_SMOKE=1 EPIKODI_SMOKE_FILE=tests/fixtures/pattern-hevc-ac3.mkv npx electron . | tee /dev/stderr | grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]'
+          npx cross-env EPIKODI_SMOKE=1 EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4 npx electron . | tee /dev/stderr | grep -E 'seekable=3'
 
       - name: Package (sans installateur)
         run: npx electron-builder --dir

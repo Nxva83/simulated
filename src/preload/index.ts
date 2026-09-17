@@ -1,10 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, MEDIA_SCHEME, type EpikodiApi } from '@shared/ipc';
-
-function toMediaUrl(filePath: string): string {
-  const segments = filePath.split(/[\\/]/).filter(Boolean).map(encodeURIComponent);
-  return `${MEDIA_SCHEME}://local/${segments.join('/')}`;
-}
+import { IPC, type EpikodiApi } from '@shared/ipc';
+import { toMediaUrl } from '@shared/mediaUrl';
 
 const api: EpikodiApi = {
   openFileDialog: () => ipcRenderer.invoke(IPC.openFileDialog),

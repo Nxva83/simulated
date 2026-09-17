@@ -7,8 +7,16 @@ import { inspectMedia } from './mediaInspect';
 import { installMediaProtocol, registerMediaScheme } from './mediaProtocol';
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL;
-/** EPIKODI_SMOKE=1 : ouvre la fenêtre, attend le rendu, quitte. Utilisé par la CI. */
+/**
+ * EPIKODI_SMOKE=1 : ouvre la fenêtre, attend le rendu, quitte. Utilisé par la CI.
+ * EPIKODI_SMOKE_FILE=<média> : ouvre en plus ce fichier dans le lecteur et rapporte, après
+ * quelques secondes, les octets audio et les images vidéo réellement décodés
+ * (`SMOKE_MEDIA audio=<octets> video=<images> position=<s>`).
+ */
 const isSmoke = process.env.EPIKODI_SMOKE === '1';
+const smokeFile = process.env.EPIKODI_SMOKE_FILE;
+/** EPIKODI_SMOKE_SEEK=<s> : après ouverture, demande un seek à cette position avant le rapport. */
+const smokeSeek = Number(process.env.EPIKODI_SMOKE_SEEK ?? 0);
 
 let mainWindow: BrowserWindow | null = null;
 /** Fichier reçu avant que la fenêtre soit prête (argument CLI, open-file macOS). */
@@ -27,6 +35,38 @@ function sendOpenFile(path: string): void {
   } else {
     pendingFile = path;
   }
+}
+
+/** Simule un glisser-relâcher de la barre de progression jusqu'à `seconds`. */
+async function smokeSeekTo(seconds: number): Promise<void> {
+  const r = (await mainWindow?.webContents.executeJavaScript(`(() => {
+    const seek = document.querySelector('input.seek');
+    if (!seek) return 'no-seekbar';
+    if (seek.disabled) return 'seekbar-disabled';
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    set.call(seek, ${seconds});
+    seek.dispatchEvent(new Event('input', { bubbles: true }));
+    return new Promise((res) => setTimeout(() => {
+      seek.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      res('value=' + seek.value);
+    }, 50));
+  })()`)) as string;
+  console.log(`SMOKE_SEEK ${r}`);
+}
+
+async function reportSmokeMedia(): Promise<void> {
+  const r = (await mainWindow?.webContents.executeJavaScript(`(() => {
+    const v = document.querySelector('video');
+    if (!v) return 'no-video';
+    return 'audio=' + (v.webkitAudioDecodedByteCount ?? 0) +
+      ' video=' + (v.getVideoPlaybackQuality?.().totalVideoFrames ?? 0) +
+      ' position=' + v.currentTime.toFixed(1) +
+      ' shown=' + (document.querySelector('.time')?.textContent ?? '').replace(/\\s/g, '') +
+      ' seekable=' + (v.seekable.length ? v.seekable.end(0).toFixed(1) : 'none') +
+      ' error=' + (v.error ? v.error.code : 0);
+  })()`)) as string;
+  console.log(`SMOKE_MEDIA ${r}`);
+  app.quit();
 }
 
 function createWindow(): void {
@@ -54,7 +94,15 @@ function createWindow(): void {
     }
     if (isSmoke) {
       console.log('SMOKE_OK');
-      setTimeout(() => app.quit(), 500);
+      if (smokeFile) {
+        mainWindow?.webContents.send(IPC.openFile, resolve(smokeFile));
+        if (smokeSeek > 0) {
+          setTimeout(() => void smokeSeekTo(smokeSeek), 2500);
+        }
+        setTimeout(() => void reportSmokeMedia(), smokeSeek > 0 ? 6000 : 4000);
+      } else {
+        setTimeout(() => app.quit(), 500);
+      }
     }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

@@ -31,7 +31,8 @@ l'[ADR 0001](docs/adr/0001-choix-stack.md) fondé sur un [benchmark Electron / T
 
 - **Electron 44** (Chromium + Node) · **Vite** via electron-vite · **TypeScript** · **React 19**
 - Lecture multimédia : élément `<video>` de Chromium, fichiers servis par un protocole `media://`
-  avec support des requêtes Range (seek)
+  avec support des requêtes Range (seek) ; pistes audio AC3/E-AC3/DTS converties à la volée par
+  `ffmpeg-static`
 - Outillage : ESLint, Prettier, Husky + lint-staged, Vitest, electron-builder
 - Intégrations externes : APIs REST (TheMovieDB, etc.)
 - Métadonnées : base de données locale (SQLite) — à venir
@@ -59,15 +60,18 @@ npm run build && npx electron . ~/Vidéos/film.mkv   # ouvre directement le lect
 Dans la section **Lecteur** : `Ctrl+O` ouvrir un fichier, `Espace` lecture/pause, `←`/`→` ±10 s,
 `↑`/`↓` volume, `M` muet, clic sur la vidéo = pause, double-clic = ouvrir.
 
-Codecs décodés par Chromium : H.264, HEVC, VP9, AV1 ; AAC, MP3, FLAC, Opus. **AC3 / E-AC3 / DTS
-ne sont pas décodés** : le lecteur l'annonce par un bandeau et lit la vidéo sans son (transcodage
-audio à la volée prévu, voir les issues).
+Codecs décodés nativement par Chromium : H.264, HEVC, VP9, AV1 ; AAC, MP3, FLAC, Opus.
+**AC3 / E-AC3 / DTS** ne le sont pas : le lecteur détecte la piste avant lecture
+(`src/main/mediaInspect.ts`) et la **convertit à la volée en AAC** avec le ffmpeg embarqué
+(`ffmpeg-static`, vidéo copiée sans réencodage, `src/main/transcoder.ts`). Dans ce mode le seek
+relance le flux à la position voulue (~1 s). Un bandeau l'indique.
 
 ### Qualité, tests, packaging
 
 ```bash
 npm run lint && npm run typecheck && npm test     # ce que fait la CI
 npm run smoke                                      # ouvre la fenêtre, vérifie le rendu, quitte
+npm run smoke:media                                # idem + lit le MKV HEVC/AC3 et rapporte les octets décodés
 npm run package                                    # dist/<os>-unpacked (sans installateur)
 npm run dist                                       # AppImage/deb, NSIS, dmg
 ```
@@ -80,7 +84,8 @@ npm run dist                                       # AppImage/deb, NSIS, dmg
 ├── electron.vite.config.ts   Build main / preload / renderer (alias @shared, @renderer)
 ├── electron-builder.yml      Packaging (AppImage, deb, NSIS, dmg)
 ├── src/
-│   ├── main/                 Processus principal : fenêtre, protocole media://, IPC, inspection des codecs
+│   ├── main/                 Processus principal : fenêtre, protocole media:// (fichiers avec Range,
+│   │                         flux ffmpeg transcodé), IPC, inspection des codecs
 │   ├── preload/              Pont sécurisé (contextBridge) → window.epikodi
 │   ├── shared/               Code partagé main/renderer : formats, erreurs, codecs, contrat IPC
 │   └── renderer/src/         UI React : App, Sidebar, PlayerView, hook usePlayer

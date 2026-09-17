@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePlayer } from '../hooks/usePlayer';
 
 interface Props {
@@ -15,6 +15,46 @@ function formatTime(seconds: number): string {
   const mm = h > 0 && m < 10 ? `0${m}` : `${m}`;
   const ss = s < 10 ? `0${s}` : `${s}`;
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** Barre de progression : la position suit la lecture, sauf pendant le glisser. */
+function SeekBar({
+  position,
+  duration,
+  disabled,
+  onSeek,
+}: {
+  position: number;
+  duration: number;
+  disabled: boolean;
+  onSeek: (s: number) => void;
+}) {
+  const [dragging, setDragging] = useState<number | null>(null);
+  // Miroir synchrone de `dragging` : le relâchement peut suivre le dernier `input` dans la même tâche.
+  const pending = useRef<number | null>(null);
+  const commit = () => {
+    if (pending.current !== null) onSeek(pending.current);
+    pending.current = null;
+    setDragging(null);
+  };
+  return (
+    <input
+      className="seek"
+      type="range"
+      min={0}
+      max={duration || 1}
+      step={0.1}
+      value={dragging ?? position}
+      disabled={disabled}
+      onChange={(e) => {
+        pending.current = Number(e.target.value);
+        setDragging(pending.current);
+      }}
+      onPointerUp={commit}
+      onKeyUp={commit}
+      onBlur={commit}
+    />
+  );
 }
 
 export default function PlayerView({ requestedFile, active }: Props) {
@@ -103,19 +143,15 @@ export default function PlayerView({ requestedFile, active }: Props) {
       )}
       {state.warning && state.status !== 'error' && (
         <div className="warning" role="status">
-          ⚠ {state.warning}
+          ℹ {state.warning}
         </div>
       )}
       <div className="controls">
-        <input
-          className="seek"
-          type="range"
-          min={0}
-          max={state.duration || 1}
-          step={0.1}
-          value={state.position}
+        <SeekBar
+          position={state.position}
+          duration={state.duration}
           disabled={!hasMedia}
-          onChange={(e) => seek(Number(e.target.value))}
+          onSeek={seek}
         />
         <div className="row">
           <button

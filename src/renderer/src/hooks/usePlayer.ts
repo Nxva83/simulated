@@ -14,8 +14,10 @@ export interface PlayerState {
   muted: boolean;
   hasVideo: boolean;
   errorMessage: string;
-  /** Avertissement non bloquant (ex. piste audio non décodable). */
+  /** Information non bloquante (ex. piste audio convertie à la volée). */
   warning: string | null;
+  /** Vrai quand le flux vient de ffmpeg : le seek relance le flux à la position voulue. */
+  transcoding: boolean;
 }
 
 const initial: PlayerState = {
@@ -29,15 +31,21 @@ const initial: PlayerState = {
   hasVideo: false,
   errorMessage: '',
   warning: null,
+  transcoding: false,
 };
 
 /**
  * Encapsule l'élément <video> derrière une API stable (open / play / pause / seek / volume).
  * Toute la logique de lecture vit ici ; les composants ne font que de l'affichage.
+ *
+ * Mode transcodé : le flux ffmpeg n'est pas seekable et commence à `offset` secondes ;
+ * la position affichée vaut `offset + video.currentTime` et la durée vient des métadonnées.
  */
 export function usePlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<PlayerState>(initial);
+  // Contexte du média courant, hors état React (lu dans les handlers d'événements).
+  const media = useRef({ path: '', transcode: false, offset: 0, duration: 0 });
   const patch = (p: Partial<PlayerState>) => setState((s) => ({ ...s, ...p }));
 
   // Synchronisation avec les événements du <video>.
@@ -45,20 +53,21 @@ export function usePlayer() {
     const v = videoRef.current;
     if (!v) return;
     v.volume = initial.volume;
+    // Toujours lire media.current au moment de l'événement : open() remplace l'objet.
+    const duration = () => {
+      const m = media.current;
+      return m.transcode ? m.duration : Number.isFinite(v.duration) ? v.duration : 0;
+    };
     const on = (ev: string, fn: () => void) => {
       v.addEventListener(ev, fn);
       return () => v.removeEventListener(ev, fn);
     };
     const offs = [
       on('loadedmetadata', () =>
-        patch({
-          status: 'ready',
-          duration: v.duration,
-          hasVideo: v.videoWidth > 0,
-        }),
+        patch({ status: 'ready', duration: duration(), hasVideo: v.videoWidth > 0 }),
       ),
-      on('durationchange', () => patch({ duration: Number.isFinite(v.duration) ? v.duration : 0 })),
-      on('timeupdate', () => patch({ position: v.currentTime })),
+      on('durationchange', () => patch({ duration: duration() })),
+      on('timeupdate', () => patch({ position: media.current.offset + v.currentTime })),
       on('play', () => patch({ playing: true, status: 'ready' })),
       on('pause', () => patch({ playing: false })),
       on('ended', () => patch({ playing: false, status: 'ended' })),
@@ -74,43 +83,60 @@ export function usePlayer() {
     return () => offs.forEach((off) => off());
   }, []);
 
-  const open = useCallback(async (path: string) => {
+  /** Charge (ou recharge à `start` secondes) le média courant dans le <video>. */
+  const load = useCallback((start: number) => {
     const v = videoRef.current;
+    const m = media.current;
     if (!v) return;
-    const pre = preflightError(path);
-    if (pre) {
-      v.removeAttribute('src');
-      v.load();
-      patch({ status: 'error', path, playing: false, hasVideo: false, errorMessage: pre });
-      return;
-    }
-    if (!(await window.epikodi.fileExists(path))) {
-      patch({
-        status: 'error',
-        path,
-        playing: false,
-        hasVideo: false,
-        errorMessage: `Fichier introuvable : ${path}`,
-      });
-      return;
-    }
-    const { warning } = await window.epikodi.inspectMedia(path);
-    patch({
-      status: 'loading',
-      path,
-      position: 0,
-      duration: 0,
-      hasVideo: !isAudio(path),
-      errorMessage: '',
-      warning,
-    });
-    v.src = window.epikodi.toMediaUrl(path);
-    try {
-      await v.play();
-    } catch {
+    m.offset = m.transcode ? start : 0;
+    v.src = window.epikodi.toMediaUrl(m.path, { transcode: m.transcode, start });
+    if (!m.transcode && start > 0) v.currentTime = start;
+    v.play().catch(() => {
       // L'événement 'error' du <video> porte déjà le diagnostic ; un refus d'autoplay est bénin.
-    }
+    });
   }, []);
+
+  const open = useCallback(
+    async (path: string) => {
+      const v = videoRef.current;
+      if (!v) return;
+      const fail = (errorMessage: string) => {
+        v.removeAttribute('src');
+        v.load();
+        patch({
+          status: 'error',
+          path,
+          playing: false,
+          hasVideo: false,
+          errorMessage,
+          transcoding: false,
+        });
+      };
+      const pre = preflightError(path);
+      if (pre) return fail(pre);
+      if (!(await window.epikodi.fileExists(path))) return fail(`Fichier introuvable : ${path}`);
+
+      const info = await window.epikodi.inspectMedia(path);
+      media.current = {
+        path,
+        transcode: info.needsTranscode,
+        offset: 0,
+        duration: info.duration ?? 0,
+      };
+      patch({
+        status: 'loading',
+        path,
+        position: 0,
+        duration: info.needsTranscode ? (info.duration ?? 0) : 0,
+        hasVideo: !isAudio(path),
+        errorMessage: '',
+        warning: info.warning,
+        transcoding: info.needsTranscode,
+      });
+      load(0);
+    },
+    [load],
+  );
 
   const play = useCallback(() => void videoRef.current?.play().catch(() => {}), []);
   const pause = useCallback(() => videoRef.current?.pause(), []);
@@ -118,21 +144,44 @@ export function usePlayer() {
     const v = videoRef.current;
     if (!v) return;
     v.pause();
-    v.currentTime = 0;
+    if (media.current.transcode) {
+      media.current.offset = 0;
+      v.removeAttribute('src');
+      v.load();
+      patch({ position: 0 });
+    } else {
+      v.currentTime = 0;
+    }
   }, []);
   const togglePlayPause = useCallback(() => {
     const v = videoRef.current;
-    if (!v || !v.src) return;
+    if (!v) return;
+    if (!v.src && media.current.path) return load(media.current.offset);
     if (v.paused) void v.play().catch(() => {});
     else v.pause();
-  }, []);
-  const seek = useCallback((seconds: number) => {
-    const v = videoRef.current;
-    if (!v || !Number.isFinite(v.duration)) return;
-    v.currentTime = Math.min(Math.max(0, seconds), v.duration);
-  }, []);
+  }, [load]);
+  const seek = useCallback(
+    (seconds: number) => {
+      const v = videoRef.current;
+      const m = media.current;
+      if (!v || !m.path) return;
+      if (m.transcode) {
+        const target = Math.min(Math.max(0, seconds), m.duration || Infinity);
+        patch({ position: target });
+        load(target);
+        return;
+      }
+      if (!Number.isFinite(v.duration)) return;
+      v.currentTime = Math.min(Math.max(0, seconds), v.duration);
+    },
+    [load],
+  );
   const seekBy = useCallback(
-    (delta: number) => seek((videoRef.current?.currentTime ?? 0) + delta),
+    (delta: number) => {
+      const v = videoRef.current;
+      const m = media.current;
+      seek(m.offset + (v?.currentTime ?? 0) + delta);
+    },
     [seek],
   );
   const setVolume = useCallback((vol: number) => {
