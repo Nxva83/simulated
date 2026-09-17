@@ -139,7 +139,8 @@ ipcMain.handle(IPC.fileExists, async (_e, path: string) => {
 });
 
 // Une seule instance : un second lancement transmet son fichier à la première.
-if (!app.requestSingleInstanceLock()) {
+// (Désactivé en smoke : la CI enchaîne des lancements et le verrou précédent peut survivre.)
+if (!isSmoke && !app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', (_e, argv) => {
