@@ -66,10 +66,11 @@ jobs:
           grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]' smoke.txt
           smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4
           grep -E 'seekable=3' smoke.txt
-          # 4) Indexation de tests/fixtures : 4 médias valides (mp4, mkv, mp3, flac), 2 rejetés
-          #    (corrupt.mp4, unsupported.xyz n'a pas d'extension média donc ignoré), vignettes générées.
+          # 4) Indexation de tests/fixtures : 4 médias valides (mp4, mkv, mp3, flac) dont 2 déjà
+          #    enregistrés par les lectures précédentes (→ ignorés par l'incrémental), corrupt.mp4
+          #    rejeté, unsupported.xyz ignoré (pas une extension média), 2 vignettes générées.
           smoke EPIKODI_SMOKE_SOURCE=tests/fixtures EPIKODI_THUMBS_DIR=smoke-thumbs
-          grep -E 'SMOKE_SCAN indexed=4 rejected=1 files=4 thumbs=2 error=none' smoke.txt
+          grep -E 'SMOKE_SCAN indexed=2 skipped=2 rejected=1 files=4 thumbs=2 error=none' smoke.txt
           # 5) La bibliothèque SQLite a bien enregistré les deux fichiers lus et leur état de lecture.
           node -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('smoke-epikodi.db'); const f=db.prepare('select count(*) c from media_files').get().c; const p=db.prepare('select count(*) c from playback_state').get().c; console.log('media_files='+f+' playback_state='+p); process.exit(f===4&&p===2?0:1)"
 

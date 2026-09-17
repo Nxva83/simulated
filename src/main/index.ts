@@ -21,7 +21,7 @@ const smokeFile = process.env.EPIKODI_SMOKE_FILE;
  * pipe est asynchrone sous Linux/Windows et peut être perdu à la sortie du processus). */
 const smokeOut = process.env.EPIKODI_SMOKE_OUT;
 /** EPIKODI_SMOKE_SOURCE=<dossier> : l'ajoute comme source, attend la fin de l'indexation et
- * rapporte `SMOKE_SCAN indexed=<n> rejected=<n> files=<n> thumbs=<n>`. */
+ * rapporte `SMOKE_SCAN indexed=<n> skipped=<n> rejected=<n> files=<n> thumbs=<n>`. */
 const smokeSource = process.env.EPIKODI_SMOKE_SOURCE;
 /** EPIKODI_SMOKE_SEEK=<s> : après ouverture, demande un seek à cette position avant le rapport. */
 const smokeSeek = Number(process.env.EPIKODI_SMOKE_SEEK ?? 0);
@@ -72,7 +72,7 @@ async function smokeScan(dir: string): Promise<void> {
         .files.list({ kind: 'video', limit: 1000 })
         .filter((f) => manager.thumbnails.has(f.id)).length;
       smokeLog(
-        `SMOKE_SCAN indexed=${p.indexed} rejected=${p.rejected} files=${files} thumbs=${thumbs} error=${p.error ?? 'none'}`,
+        `SMOKE_SCAN indexed=${p.indexed} skipped=${p.skipped} rejected=${p.rejected} files=${files} thumbs=${thumbs} error=${p.error ?? 'none'}`,
       );
       setTimeout(() => app.quit(), 200);
       return;
