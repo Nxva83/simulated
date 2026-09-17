@@ -19,7 +19,7 @@ jobs:
       - name: Installer Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.*'
+          version: '6.9.*'   # 6.8.x lie le framework AGL, absent des SDK Xcode >= 15 (macos-latest)
           cache: true
 
       - name: Installer Ninja
