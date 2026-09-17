@@ -65,6 +65,15 @@ Chaque fichier ouvert est enregistré dans la bibliothèque (`<userData>/epikodi
 **reprend où elle s'était arrêtée**, un média lu à plus de 90 % est marqué **vu**, le volume et les
 favoris sont mémorisés.
 
+### Bibliothèque
+
+**Réglages → Ajouter un dossier…** : le dossier est parcouru en tâche de fond (extension **et**
+type MIME pour les fichiers sans extension, dossiers cachés/système ignorés), chaque média est
+inspecté (durée, résolution, codecs, tags ID3 → artistes / albums / pistes), une vignette est
+générée pour les vidéos, puis le dossier est **surveillé** : un fichier ajouté, modifié ou supprimé
+met la bibliothèque à jour tout seul. Les scans suivants sont incrémentaux (taille + date). Les
+sections **Films** et **Musique** affichent le résultat ; un clic lance la lecture.
+
 Chromium décode nativement H.264, VP9, AV1, AAC, MP3, FLAC, Opus — mais **pas** AC3/E-AC3/DTS,
 ni MPEG-2, DivX/Xvid, VC-1, ni HEVC sans décodeur matériel. Le lecteur inspecte le fichier avant
 lecture (`src/main/mediaInspect.ts`) et, seulement si nécessaire, **convertit à la volée** avec le
@@ -92,11 +101,13 @@ npm run dist                                       # AppImage/deb, NSIS, dmg
 ├── src/
 │   ├── main/                 Processus principal : fenêtre, protocole media:// (fichiers avec Range,
 │   │                         flux ffmpeg transcodé), IPC, inspection des codecs
-│   ├── main/db/              SQLite : migrations versionnées, dépôts (fichiers, lecture, réglages,
-│   │                         sources), recherche FTS5, sauvegarde / restauration
+│   ├── main/db/              SQLite : migrations versionnées, dépôts (fichiers, musique, lecture,
+│   │                         réglages, sources), recherche FTS5, sauvegarde / restauration
+│   ├── main/scanner/         Indexation : parcours (walk), scan incrémental, vignettes ffmpeg,
+│   │                         watcher chokidar, orchestration (ScanManager)
 │   ├── preload/              Pont sécurisé (contextBridge) → window.epikodi
 │   ├── shared/               Code partagé main/renderer : formats, erreurs, codecs, contrat IPC
-│   └── renderer/src/         UI React : App, Sidebar, PlayerView, hook usePlayer
+│   └── renderer/src/         UI React : App, Sidebar, PlayerView (hook usePlayer), LibraryView, SettingsView
 ├── tests/
 │   ├── unit/                 Tests Vitest
 │   └── fixtures/             Médias de test générés par ffmpeg (MP4 H.264/AAC, MKV HEVC/AC3, MP3, FLAC…)

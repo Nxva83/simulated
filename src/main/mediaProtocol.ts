@@ -2,7 +2,9 @@ import { app, protocol } from 'electron';
 import { MEDIA_SCHEME } from '@shared/ipc';
 import { isSupported } from '@shared/mediaFormats';
 import { parseMediaUrl } from '@shared/mediaUrl';
+import { join } from 'node:path';
 import { serveFile } from './fileStream';
+import { thumbnailsDir } from './libraryIpc';
 import { Transcoder } from './transcoder';
 
 /**
@@ -30,6 +32,11 @@ export function installMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
     const { host, filePath, start, video } = parseMediaUrl(request.url);
     if (process.env.EPIKODI_TRACE === '1') console.log(`[media] ${host} t=${start} v=${video}`);
+    if (host === 'thumb') {
+      const name = filePath.replace(/^\//, '');
+      if (!/^\d+\.jpg$/.test(name)) return new Response('Vignette invalide', { status: 400 });
+      return serveFile(join(thumbnailsDir(), name), null);
+    }
     if (!isSupported(filePath)) {
       return new Response('Format non pris en charge', { status: 415 });
     }

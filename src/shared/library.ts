@@ -11,6 +11,8 @@ export interface PlayableRef {
 
 export interface MediaFile {
   id: number;
+  /** URL de la vignette (media://thumb/<id>.jpg), null si non générée. */
+  thumbnailUrl?: string | null;
   sourceId: number | null;
   path: string;
   kind: MediaKind;
@@ -80,6 +82,59 @@ export interface Source {
   kind: SourceKind;
   addedAt: number;
   lastScanAt: number | null;
+}
+
+export interface Artist {
+  id: number;
+  name: string;
+}
+
+export interface Album {
+  id: number;
+  artistId: number | null;
+  title: string;
+  year: number | null;
+  coverPath: string | null;
+}
+
+export interface Track {
+  id: number;
+  mediaFileId: number;
+  albumId: number | null;
+  artistId: number | null;
+  title: string;
+  discNo: number | null;
+  trackNo: number | null;
+  genre: string | null;
+}
+
+/** Tags audio (ID3, Vorbis, MP4) tels que lus dans le fichier. */
+export interface AudioTags {
+  title?: string;
+  artist?: string;
+  albumArtist?: string;
+  album?: string;
+  year?: number;
+  trackNo?: number;
+  discNo?: number;
+  genre?: string;
+}
+
+export interface ScanProgress {
+  sourceId: number;
+  path: string;
+  /** Fichiers vus jusqu'ici / total connu (le total est estimé au fil du parcours). */
+  scanned: number;
+  indexed: number;
+  skipped: number;
+  /** Extension de média mais contenu illisible (fichier renommé, corrompu). */
+  rejected: number;
+  removed: number;
+  /** Fichier en cours. */
+  current: string | null;
+  done: boolean;
+  error: string | null;
+  startedAt: number;
 }
 
 /** Titre lisible déduit d'un nom de fichier : « Mon.Film.2024.1080p.mkv » → « Mon Film 2024 1080p ». */

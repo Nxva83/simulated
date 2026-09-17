@@ -4,6 +4,7 @@ import type {
   MediaFile,
   PlaybackState,
   PlayableRef,
+  ScanProgress,
   SearchHit,
   Source,
   SourceKind,
@@ -34,9 +35,20 @@ export const IPC = {
   sourcesList: 'sources:list',
   sourcesAdd: 'sources:add',
   sourcesRemove: 'sources:remove',
+  sourcesPickFolder: 'sources:pick-folder',
+  scanStart: 'scan:start',
+  scanStatus: 'scan:status',
+  scanProgress: 'scan:progress', // main → renderer
+  libraryChanged: 'library:changed', // main → renderer : fichiers ajoutés/retirés, scan terminé
   dbBackup: 'db:backup',
   dbRestore: 'db:restore',
 } as const;
+
+export interface LibraryChange {
+  sourceId: number;
+  path?: string;
+  event: 'add' | 'change' | 'unlink' | 'scan-done' | 'source-removed';
+}
 
 /** Schéma personnalisé qui sert les fichiers locaux au renderer (voir main/mediaProtocol.ts). */
 export const MEDIA_SCHEME = 'media';
@@ -77,9 +89,20 @@ export interface EpikodiApi {
   };
   sources: {
     list(): Promise<Source[]>;
+    /** Ouvre le sélecteur de dossier ; null si annulé. */
+    pickFolder(): Promise<string | null>;
+    /** Ajoute la source et lance son indexation en tâche de fond. */
     add(path: string, kind: SourceKind): Promise<Source>;
     remove(id: number): Promise<void>;
   };
+  scan: {
+    /** (Re)lance l'indexation d'une source, ou de toutes si `sourceId` est omis. */
+    start(sourceId?: number): Promise<void>;
+    status(): Promise<ScanProgress[]>;
+    onProgress(cb: (p: ScanProgress) => void): () => void;
+  };
+  /** La bibliothèque a changé (scan terminé, fichier ajouté/supprimé) : à recharger. */
+  onLibraryChanged(cb: (e: LibraryChange) => void): () => void;
   db: {
     /** Ouvre un dialogue et sauvegarde ; retourne le chemin ou null si annulé. */
     backup(): Promise<string | null>;

@@ -20,6 +20,8 @@ const MIME: Record<string, string> = {
   oga: 'audio/ogg',
   opus: 'audio/ogg',
   wav: 'audio/wav',
+  jpg: 'image/jpeg',
+  png: 'image/png',
 };
 
 /** Interprète `Range: bytes=a-b` ; null si absent ou invalide. */

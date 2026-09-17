@@ -157,6 +157,16 @@ export class MediaFilesRepository {
     return n;
   }
 
+  /** Marque un fichier précis comme disparu (watcher). */
+  markMissingByPath(path: string): boolean {
+    const r = this.db
+      .prepare(
+        'UPDATE media_files SET missing_since = unixepoch() WHERE path = ? AND missing_since IS NULL',
+      )
+      .run(path);
+    return r.changes > 0;
+  }
+
   remove(id: number): void {
     this.db.prepare('DELETE FROM media_files WHERE id = ?').run(id);
     this.db.prepare("DELETE FROM search_index WHERE item_type = 'file' AND item_id = ?").run(id);

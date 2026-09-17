@@ -6,8 +6,19 @@ import { isAudio, isSupported } from '@shared/mediaFormats';
 import type { ListOptions, MediaFileInput, PlayableRef, SourceKind } from '@shared/library';
 import { Library } from './db';
 import { inspectMedia } from './mediaInspect';
+import { ScanManager } from './scanner';
 
 let library: Library | null = null;
+let scanManager: ScanManager | null = null;
+
+export function thumbnailsDir(): string {
+  return process.env.EPIKODI_THUMBS_DIR ?? join(app.getPath('userData'), 'thumbs');
+}
+
+export function getScanManager(): ScanManager {
+  if (!scanManager) scanManager = new ScanManager(getLibrary(), thumbnailsDir());
+  return scanManager;
+}
 
 /** Chemin de la base : `<userData>/epikodi.db` (EPIKODI_DB_PATH pour le remplacer, ex. en smoke). */
 export function databasePath(): string {
@@ -19,9 +30,20 @@ export function getLibrary(): Library {
   return library;
 }
 
-export function closeLibrary(): void {
+export async function closeLibrary(): Promise<void> {
+  await scanManager?.stop();
+  scanManager = null;
   library?.close();
   library = null;
+}
+
+/** Ajoute l'URL de vignette aux fichiers qui en ont une. */
+function withThumbnails<T extends { id: number; kind: string }>(files: T[]): T[] {
+  const thumbs = getScanManager().thumbnails;
+  return files.map((f) => ({
+    ...f,
+    thumbnailUrl: f.kind === 'video' && thumbs.has(f.id) ? `media://thumb/${f.id}.jpg` : null,
+  }));
 }
 
 /** Enregistre (ou rafraîchit) un fichier ouvert dans le lecteur, avec ses codecs et sa taille. */
@@ -68,11 +90,16 @@ export function registerLibraryIpc(): void {
   }
 
   ipcMain.handle(IPC.libraryRegisterFile, (_e, path: string) => registerFile(path));
-  ipcMain.handle(IPC.libraryList, (_e, opts: ListOptions) => lib().files.list(opts));
+  ipcMain.handle(IPC.libraryList, (_e, opts: ListOptions) =>
+    withThumbnails(lib().files.list(opts)),
+  );
   ipcMain.handle(IPC.librarySearch, (_e, q: string, limit?: number) =>
     lib().files.search(q, limit),
   );
-  ipcMain.handle(IPC.libraryFile, (_e, id: number) => lib().files.byId(id));
+  ipcMain.handle(IPC.libraryFile, (_e, id: number) => {
+    const f = lib().files.byId(id);
+    return f ? withThumbnails([f])[0] : null;
+  });
 
   ipcMain.handle(IPC.playbackGet, (_e, ref: PlayableRef) => lib().playback.get(ref));
   ipcMain.handle(IPC.playbackResume, (_e, ref: PlayableRef) => lib().playback.resumePosition(ref));
@@ -131,5 +158,7 @@ export function registerLibraryIpc(): void {
     return true;
   });
 
-  app.on('will-quit', closeLibrary);
+  app.on('will-quit', () => void closeLibrary());
+  // Surveillance et rattrapage des sources dès le démarrage.
+  getScanManager().start();
 }

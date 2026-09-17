@@ -1,4 +1,5 @@
-export type Section = 'films' | 'series' | 'musique' | 'podcasts' | 'fichiers' | 'lecteur';
+export type Section =
+  'films' | 'series' | 'musique' | 'podcasts' | 'fichiers' | 'lecteur' | 'reglages';
 
 const ITEMS: { key: Section; label: string }[] = [
   { key: 'films', label: 'Films' },
@@ -7,6 +8,7 @@ const ITEMS: { key: Section; label: string }[] = [
   { key: 'podcasts', label: 'Podcasts' },
   { key: 'fichiers', label: 'Fichiers' },
   { key: 'lecteur', label: 'Lecteur' },
+  { key: 'reglages', label: 'Réglages' },
 ];
 
 interface Props {

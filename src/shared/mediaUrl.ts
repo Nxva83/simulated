@@ -3,11 +3,12 @@ import { MEDIA_SCHEME } from './ipc';
 /**
  * URLs servies par le processus principal (voir main/mediaProtocol.ts) :
  *   media://local/<chemin>            fichier brut, requêtes Range (seek natif)
+ *   media://thumb/<id>.jpg           vignette générée par l'indexation
  *   media://transcode/<chemin>?t=<s>[&v=1]
  *                                     flux ffmpeg à partir de t secondes (audio → AAC ; vidéo
  *                                     copiée, ou réencodée en H.264 si v=1), non seekable
  */
-export type MediaHost = 'local' | 'transcode';
+export type MediaHost = 'local' | 'transcode' | 'thumb';
 
 function encodePath(filePath: string): string {
   return filePath.split(/[\\/]/).filter(Boolean).map(encodeURIComponent).join('/');
@@ -45,7 +46,8 @@ export function parseMediaUrl(url: string): ParsedMediaUrl {
   const u = new URL(url);
   const decoded = decodeURIComponent(u.pathname);
   const filePath = /^\/[A-Za-z]:/.test(decoded) ? decoded.slice(1) : decoded;
-  const host = u.hostname === 'transcode' ? 'transcode' : 'local';
+  const host: MediaHost =
+    u.hostname === 'transcode' ? 'transcode' : u.hostname === 'thumb' ? 'thumb' : 'local';
   const t = Number(u.searchParams.get('t') ?? 0);
   return {
     host,

@@ -4,7 +4,7 @@ import { access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { IPC } from '@shared/ipc';
 import { dialogFilters, isSupported } from '@shared/mediaFormats';
-import { registerLibraryIpc } from './libraryIpc';
+import { getLibrary, getScanManager, registerLibraryIpc } from './libraryIpc';
 import { inspectMedia } from './mediaInspect';
 import { installMediaProtocol, registerMediaScheme } from './mediaProtocol';
 
@@ -20,6 +20,9 @@ const smokeFile = process.env.EPIKODI_SMOKE_FILE;
 /** EPIKODI_SMOKE_OUT=<fichier> : le rapport y est aussi écrit de façon synchrone (stdout vers un
  * pipe est asynchrone sous Linux/Windows et peut être perdu à la sortie du processus). */
 const smokeOut = process.env.EPIKODI_SMOKE_OUT;
+/** EPIKODI_SMOKE_SOURCE=<dossier> : l'ajoute comme source, attend la fin de l'indexation et
+ * rapporte `SMOKE_SCAN indexed=<n> rejected=<n> files=<n> thumbs=<n>`. */
+const smokeSource = process.env.EPIKODI_SMOKE_SOURCE;
 /** EPIKODI_SMOKE_SEEK=<s> : après ouverture, demande un seek à cette position avant le rapport. */
 const smokeSeek = Number(process.env.EPIKODI_SMOKE_SEEK ?? 0);
 
@@ -54,6 +57,30 @@ function sendOpenFile(path: string): void {
   } else {
     pendingFile = path;
   }
+}
+
+/** Indexe un dossier et rapporte le résultat (CI). */
+async function smokeScan(dir: string): Promise<void> {
+  const manager = getScanManager();
+  const source = manager.addSource(dir, 'mixed');
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    const p = manager.snapshot().find((x) => x.sourceId === source.id);
+    if (p?.done) {
+      const files = getLibrary().files.count();
+      const thumbs = getLibrary()
+        .files.list({ kind: 'video', limit: 1000 })
+        .filter((f) => manager.thumbnails.has(f.id)).length;
+      smokeLog(
+        `SMOKE_SCAN indexed=${p.indexed} rejected=${p.rejected} files=${files} thumbs=${thumbs} error=${p.error ?? 'none'}`,
+      );
+      setTimeout(() => app.quit(), 200);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  smokeLog('SMOKE_SCAN timeout');
+  app.quit();
 }
 
 /** Simule un glisser-relâcher de la barre de progression jusqu'à `seconds`. */
@@ -130,7 +157,9 @@ function createWindow(): void {
     }
     if (isSmoke) {
       smokeLog('SMOKE_OK');
-      if (smokeFile) {
+      if (smokeSource) {
+        void smokeScan(resolve(smokeSource));
+      } else if (smokeFile) {
         mainWindow?.webContents.send(IPC.openFile, resolve(smokeFile));
         if (smokeSeek > 0) {
           setTimeout(() => void smokeSeekTo(smokeSeek), 2500);

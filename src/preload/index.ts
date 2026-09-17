@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, type EpikodiApi } from '@shared/ipc';
+import { IPC, type EpikodiApi, type LibraryChange } from '@shared/ipc';
+import type { ScanProgress } from '@shared/library';
 import { toMediaUrl } from '@shared/mediaUrl';
 
 const api: EpikodiApi = {
@@ -38,8 +39,23 @@ const api: EpikodiApi = {
   },
   sources: {
     list: () => ipcRenderer.invoke(IPC.sourcesList),
+    pickFolder: () => ipcRenderer.invoke(IPC.sourcesPickFolder),
     add: (path, kind) => ipcRenderer.invoke(IPC.sourcesAdd, path, kind),
     remove: (id) => ipcRenderer.invoke(IPC.sourcesRemove, id),
+  },
+  scan: {
+    start: (sourceId) => ipcRenderer.invoke(IPC.scanStart, sourceId),
+    status: () => ipcRenderer.invoke(IPC.scanStatus),
+    onProgress: (cb) => {
+      const listener = (_e: Electron.IpcRendererEvent, p: ScanProgress) => cb(p);
+      ipcRenderer.on(IPC.scanProgress, listener);
+      return () => ipcRenderer.removeListener(IPC.scanProgress, listener);
+    },
+  },
+  onLibraryChanged: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, c: LibraryChange) => cb(c);
+    ipcRenderer.on(IPC.libraryChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.libraryChanged, listener);
   },
   db: {
     backup: () => ipcRenderer.invoke(IPC.dbBackup),

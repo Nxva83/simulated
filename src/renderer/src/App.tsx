@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import type { MediaFile } from '@shared/library';
 import Sidebar, { type Section } from './components/Sidebar';
 import PlayerView from './components/PlayerView';
+import LibraryView from './components/LibraryView';
+import SettingsView from './components/SettingsView';
 
 export default function App() {
   const [section, setSection] = useState<Section>('films');
@@ -17,6 +20,10 @@ export default function App() {
   );
 
   const title = section.charAt(0).toUpperCase() + section.slice(1);
+  const play = (file: MediaFile) => {
+    setFileToOpen(file.path);
+    setSection('lecteur');
+  };
 
   return (
     <div className="app">
@@ -26,10 +33,13 @@ export default function App() {
         <div style={{ display: section === 'lecteur' ? 'contents' : 'none' }}>
           <PlayerView requestedFile={fileToOpen} active={section === 'lecteur'} />
         </div>
-        {section !== 'lecteur' && (
+        {section === 'films' && <LibraryView title="Films" kind="video" onPlay={play} />}
+        {section === 'musique' && <LibraryView title="Musique" kind="audio" onPlay={play} />}
+        {section === 'reglages' && <SettingsView />}
+        {(section === 'series' || section === 'podcasts' || section === 'fichiers') && (
           <div className="placeholder">
             <h1>{title}</h1>
-            <p>Bibliothèque vide — ajoutez une source pour commencer.</p>
+            <p>Bientôt disponible.</p>
           </div>
         )}
       </main>
