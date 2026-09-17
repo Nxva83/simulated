@@ -87,6 +87,17 @@ export class Transcoder {
     const stdout = child.stdout!;
     return new ReadableStream<Uint8Array>({
       start(controller) {
+        // Binaire absent ou non exécutable : on ferme le flux en erreur plutôt que de bloquer.
+        child.on('error', (err) => {
+          console.error(
+            `[transcode] impossible de lancer ffmpeg (${ffmpegPath()}): ${err.message}`,
+          );
+          try {
+            controller.error(err);
+          } catch {
+            /* déjà fermé */
+          }
+        });
         stdout.on('data', (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)));
         stdout.on('end', () => {
           try {

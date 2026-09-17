@@ -63,7 +63,9 @@ async function reportSmokeMedia(): Promise<void> {
       ' position=' + v.currentTime.toFixed(1) +
       ' shown=' + (document.querySelector('.time')?.textContent ?? '').replace(/\\s/g, '') +
       ' seekable=' + (v.seekable.length ? v.seekable.end(0).toFixed(1) : 'none') +
-      ' error=' + (v.error ? v.error.code : 0);
+      ' ready=' + v.readyState + ' net=' + v.networkState + ' paused=' + v.paused +
+      ' error=' + (v.error ? v.error.code : 0) +
+      ' text="' + (document.querySelector('.stage .text')?.textContent ?? '') + '"';
   })()`)) as string;
   console.log(`SMOKE_MEDIA ${r}`);
   app.quit();
