@@ -53,10 +53,10 @@ jobs:
           RUN: ${{ runner.os == 'Linux' && 'xvfb-run --auto-servernum' || '' }}
           FLAGS: ${{ runner.os == 'Linux' && '--no-sandbox --disable-audio-output' || '' }}
         run: |
-          smoke() { out=$($RUN npx cross-env EPIKODI_SMOKE=1 "$@" npx electron . $FLAGS 2>/dev/null); echo "$out" | grep SMOKE_; echo "$out"; }
-          smoke                                                        | grep -q SMOKE_OK
-          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-hevc-ac3.mkv | grep -qE 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]'
-          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4 | grep -qE 'seekable=3'
+          smoke() { $RUN npx cross-env EPIKODI_SMOKE=1 "$@" npx electron . $FLAGS 2>/dev/null | grep SMOKE_ || true; }
+          smoke                                                        | grep SMOKE_OK
+          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-hevc-ac3.mkv | grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]'
+          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4 | grep -E 'seekable=3'
 
       - name: Package (sans installateur)
         run: npx electron-builder --dir
