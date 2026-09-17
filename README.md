@@ -26,97 +26,92 @@ L'application se veut entierement personnalisable : extensions, themes, connecte
 
 ## Stack technologique
 
-Décision consignée dans l'[ADR 0001](docs/adr/0001-choix-stack.md), fondée sur un
-[benchmark comparatif](docs/benchmark-stack.md) Electron / Tauri / Qt.
+Décision consignée dans l'[ADR 0002](docs/adr/0002-passage-a-electron.md) (qui remplace
+l'[ADR 0001](docs/adr/0001-choix-stack.md) fondé sur un [benchmark Electron / Tauri / Qt](docs/benchmark-stack.md)).
 
-- Langage : **C++17**
-- Interface : **Qt 6 (≥ 6.5)** — QML / Qt Quick Controls 2, style `Basic` (identique sur les 3 OS)
-- Traitement multimédia : **Qt Multimedia** (backend FFmpeg)
-- Build : **CMake ≥ 3.25 + Ninja**, presets `debug` / `release` / `ci`
-- Tests : **Qt Test + CTest**
-- Intégrations externes : APIs REST (TheMovieDB, etc.) via QtNetwork
-- Métadonnées : base de données locale (SQLite)
+- **Electron 44** (Chromium + Node) · **Vite** via electron-vite · **TypeScript** · **React 19**
+- Lecture multimédia : élément `<video>` de Chromium, fichiers servis par un protocole `media://`
+  avec support des requêtes Range (seek)
+- Outillage : ESLint, Prettier, Husky + lint-staged, Vitest, electron-builder
+- Intégrations externes : APIs REST (TheMovieDB, etc.)
+- Métadonnées : base de données locale (SQLite) — à venir
 
 ## Démarrer
 
 ### Prérequis
 
-- Qt 6.5+ avec les modules Core, Gui, Qml, Quick, QuickControls2, Test
-- CMake 3.25+, Ninja, un compilateur C++17 (GCC 12+, Clang 15+, MSVC 2022)
-- `clang-format` (formatage, vérifié par le hook de pre-commit et la CI)
+Node.js 22+ et npm. Rien d'autre : Electron est téléchargé par npm.
 
-### Développement (hot-reload QML)
+### Développement
 
 ```bash
 git clone git@github.com:Nxva83/simulated.git && cd simulated
-./scripts/setup-hooks.sh      # active le hook pre-commit (clang-format)
-./scripts/dev.sh              # configure + build Debug + lance l'app
+npm install          # dépendances + hook pre-commit (Husky)
+npm run dev          # lance l'app avec hot-reload (renderer) et redémarrage auto (main)
 ```
-
-En build **Debug**, l'application charge les `.qml` depuis `src/ui/` et **recharge la fenêtre
-automatiquement à chaque sauvegarde** (`src/app/QmlHotReloader`). En Release, les QML sont
-compilés et embarqués dans le binaire.
 
 ### Lecture d'un média
 
 ```bash
-./build/debug/src/epikodi ~/Vidéos/film.mkv      # ouvre directement le lecteur
+npm run build && npx electron . ~/Vidéos/film.mkv   # ouvre directement le lecteur
 ```
 
-Dans la section **Lecteur** : `Ctrl+O` ouvre un fichier, `Espace` lecture/pause, `←`/`→` ±10 s,
-`↑`/`↓` volume, `M` muet. Le décodage est assuré par **Qt Multimedia (backend FFmpeg)** : H.264,
-HEVC, VP9, AV1, AAC, AC3, DTS, MP3, FLAC… avec accélération matérielle automatique (VAAPI /
-D3D11 / VideoToolbox — forçable via `QT_FFMPEG_DECODING_HW_DEVICE_TYPES`).
+Dans la section **Lecteur** : `Ctrl+O` ouvrir un fichier, `Espace` lecture/pause, `←`/`→` ±10 s,
+`↑`/`↓` volume, `M` muet, clic sur la vidéo = pause, double-clic = ouvrir.
 
-### Build Release et tests
+Codecs décodés par Chromium : H.264, HEVC, VP9, AV1 ; AAC, MP3, FLAC, Opus. **AC3 / E-AC3 / DTS
+ne sont pas décodés** : le lecteur l'annonce par un bandeau et lit la vidéo sans son (transcodage
+audio à la volée prévu, voir les issues).
+
+### Qualité, tests, packaging
 
 ```bash
-cmake --preset release && cmake --build --preset release
-cmake --preset ci && cmake --build --preset ci && ctest --preset ci   # warnings = erreurs
+npm run lint && npm run typecheck && npm test     # ce que fait la CI
+npm run smoke                                      # ouvre la fenêtre, vérifie le rendu, quitte
+npm run package                                    # dist/<os>-unpacked (sans installateur)
+npm run dist                                       # AppImage/deb, NSIS, dmg
 ```
 
 ## Arborescence
 
 ```
 .
-├── CMakeLists.txt          Projet racine (options, warnings, Qt)
-├── CMakePresets.json       Presets debug / release / ci
+├── package.json              Scripts npm, dépendances
+├── electron.vite.config.ts   Build main / preload / renderer (alias @shared, @renderer)
+├── electron-builder.yml      Packaging (AppImage, deb, NSIS, dmg)
 ├── src/
-│   ├── main.cpp            Point d'entrée
-│   ├── app/                Infrastructure applicative (QmlHotReloader…)
-│   ├── core/               Bibliothèque `epikodi_core` : logique métier sans UI (Version…)
-│   ├── media/              Module `Epikodi.Media` : `Player` (Qt Multimedia/FFmpeg), `MediaFormats`
-│   └── ui/                 Module QML `Epikodi.Ui` (Main.qml, PlayerView.qml, components/)
-├── assets/                 Icônes, polices, images embarquées
-├── tests/                  Tests Qt Test (une cible par fichier, `epikodi_add_test`)
-│   └── fixtures/           Médias de test générés par ffmpeg (MP4 H.264/AAC, MKV HEVC/AC3, MP3, FLAC…)
-├── docs/
-│   ├── adr/                Architecture Decision Records
-│   └── benchmark-stack.md  Benchmark Electron / Tauri / Qt
-├── benchmark/              Sources du benchmark de stack (reproductible)
-├── scripts/                dev.sh, setup-hooks.sh
-├── .githooks/              pre-commit : clang-format sur les fichiers indexés
-└── .github/workflows/      CI : build + tests sur Ubuntu, Windows, macOS + vérification du format
+│   ├── main/                 Processus principal : fenêtre, protocole media://, IPC, inspection des codecs
+│   ├── preload/              Pont sécurisé (contextBridge) → window.epikodi
+│   ├── shared/               Code partagé main/renderer : formats, erreurs, codecs, contrat IPC
+│   └── renderer/src/         UI React : App, Sidebar, PlayerView, hook usePlayer
+├── tests/
+│   ├── unit/                 Tests Vitest
+│   └── fixtures/             Médias de test générés par ffmpeg (MP4 H.264/AAC, MKV HEVC/AC3, MP3, FLAC…)
+├── assets/                   Icônes et ressources de packaging
+├── docs/adr/                 Architecture Decision Records
+├── docs/benchmark-stack.md   Benchmark Electron / Tauri / Qt
+├── benchmark/                Sources du benchmark (reproductible)
+└── .github/workflows/        CI : lint, typecheck, tests, build + smoke + packaging sur 3 OS
 ```
 
 ## Conventions
 
-- **C++** : style `.clang-format` (base LLVM, 4 espaces, 100 colonnes, `Type* ptr`), namespace
-  `epikodi`, un composant = `Nom.h` + `Nom.cpp`. `clang-tidy` configuré (`.clang-tidy`).
-- **QML** : un composant par fichier en `PascalCase.qml`, 2 espaces, propriétés `required`
-  pour les données de délégué, pas de logique métier dans le QML (elle vit dans `core/`).
-- **Dépendances entre couches** : `ui` → `app` → `media` → `core`. `core` et `media` ne dépendent
-  jamais de Qt Quick ; l'UI ne parle à Qt Multimedia qu'à travers `Epikodi.Media.Player`.
-- **Tests** : tout ce qui est dans `core/` est testable sans UI ; un `test_<sujet>.cpp` par sujet.
+- **TypeScript strict** partout ; formatage Prettier et règles ESLint appliqués par le hook de
+  pre-commit (lint-staged) et vérifiés en CI.
+- **Sécurité Electron** : `contextIsolation` activé, aucun accès Node dans le renderer ; tout passe
+  par `window.epikodi` (preload) et le contrat `src/shared/ipc.ts`.
+- **Couches** : `renderer` → `preload` → `main`. La logique de lecture vit dans le hook
+  `usePlayer` ; les composants n'affichent que l'état.
+- **Tests** : la logique partagée (`src/shared`) et les fonctions pures de `main` sont testées
+  avec Vitest ; le smoke test CI prouve que l'app se lance sur chaque OS.
 - **Commits** : [Conventional Commits](https://www.conventionalcommits.org/fr/) en français
   (`feat:`, `fix:`, `docs:`, `build:`, `ci:`, `test:`), référence à l'issue en fin de sujet.
 - **Décisions** : toute décision d'architecture structurante fait l'objet d'un ADR dans `docs/adr/`.
 
 ## Statut
 
-- **v0.1 — Fondations** (#1) : stack choisie, squelette Qt/CMake, hot-reload, tests, CI ✔
-- **v1 — MVP** : décodage et lecteur (#2) ✔ · indexation (#4), base de métadonnées (#9),
-  bibliothèque (#13) à venir.
+- **v0.1 — Fondations** (#1) : stack choisie, squelette Electron, hot-reload, lint, tests, CI ✔
+- **v1 — MVP** : lecteur (#2) ✔ · indexation (#4), base de métadonnées (#9), bibliothèque (#13) à venir.
 
 ## Licence
 

@@ -6,8 +6,24 @@ on:
   pull_request:
 
 jobs:
+  check:
+    name: lint · typecheck · tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+
   build:
-    name: ${{ matrix.os }}
+    name: build + smoke · ${{ matrix.os }}
+    needs: check
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -15,38 +31,23 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Installer Qt
-        uses: jurplel/install-qt-action@v4
+      - uses: actions/setup-node@v4
         with:
-          version: '6.9.*'   # 6.8.x lie le framework AGL, absent des SDK Xcode >= 15 (macos-latest)
-          modules: 'qtmultimedia'
-          cache: true
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
 
-      - name: Installer Ninja
-        uses: seanmiddleditch/gha-setup-ninja@v5
-
-      - name: Environnement MSVC
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Dependances Linux
+      # L'application s'ouvre, rend sa fenêtre et quitte : preuve qu'elle se lance sur l'OS.
+      - name: Smoke (Linux, écran virtuel)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libpulse-dev
+        run: xvfb-run --auto-servernum npx cross-env EPIKODI_SMOKE=1 npx electron . --no-sandbox | grep -q SMOKE_OK
+      - name: Smoke (Windows / macOS)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: npx cross-env EPIKODI_SMOKE=1 npx electron . | grep -q SMOKE_OK
 
-      - name: Configurer
-        run: cmake --preset ci
-
-      - name: Compiler
-        run: cmake --build --preset ci
-
-      - name: Tester
-        run: ctest --preset ci
-
-  format:
-    name: clang-format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          find src tests -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror
+      - name: Package (sans installateur)
+        run: npx electron-builder --dir
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false

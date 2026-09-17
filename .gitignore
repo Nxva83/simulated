@@ -151,5 +151,7 @@ benchmark/results/*.log
 benchmark/electron/common/
 __pycache__/
 
-# Build CMake
-build/
+# Electron / electron-vite / electron-builder
+out/
+dist/
+release/

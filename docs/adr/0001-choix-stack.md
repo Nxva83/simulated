@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | Accepté |
+| **Statut** | **Remplacé** par [ADR 0002](0002-passage-a-electron.md) le 2026-09-17 |
 | **Date** | 2026-09-17 |
 | **Décideurs** | Nxva83 |
 | **Issue** | #1 — Mettre en place l'architecture du projet |

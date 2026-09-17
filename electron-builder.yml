@@ -1,0 +1,19 @@
+appId: fr.epitech.epikodi
+productName: EPIKODI
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - out/**
+  - package.json
+linux:
+  target: [AppImage, deb]
+  category: AudioVideo
+win:
+  target: [nsis]
+mac:
+  target: [dmg]
+  category: public.app-category.entertainment
+fileAssociations:
+  - ext: [mp4, mkv, webm, avi, mov, mp3, flac, ogg, opus, wav]
+    role: Viewer
