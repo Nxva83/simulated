@@ -155,3 +155,5 @@ __pycache__/
 out/
 dist/
 release/
+smoke.txt
+smoke.log

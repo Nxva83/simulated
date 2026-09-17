@@ -53,10 +53,18 @@ jobs:
           RUN: ${{ runner.os == 'Linux' && 'xvfb-run --auto-servernum' || '' }}
           FLAGS: ${{ runner.os == 'Linux' && '--no-sandbox --disable-audio-output' || '' }}
         run: |
-          smoke() { $RUN npx cross-env EPIKODI_SMOKE=1 "$@" npx electron . $FLAGS 2>&1 | grep -vE "dbus|^\s*$" || true; }
-          smoke                                                        | grep SMOKE_OK
-          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-hevc-ac3.mkv | grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]'
-          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4 | grep -E 'seekable=3'
+          smoke() {
+            rm -f smoke.txt
+            t0=$(date +%s)
+            $RUN npx cross-env EPIKODI_SMOKE=1 EPIKODI_SMOKE_OUT=smoke.txt "$@" npx electron . $FLAGS > smoke.log 2>&1 || echo "electron exit=$?"
+            echo "--- $* ($(( $(date +%s) - t0 )) s)"; cat smoke.txt 2>/dev/null || { echo "(pas de rapport)"; grep -vE "dbus" smoke.log | head -20; }
+          }
+          smoke
+          grep SMOKE_OK smoke.txt
+          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-hevc-ac3.mkv
+          grep -E 'SMOKE_MEDIA audio=[1-9][0-9]* video=[1-9]' smoke.txt
+          smoke EPIKODI_SMOKE_FILE=tests/fixtures/pattern-h264-aac.mp4
+          grep -E 'seekable=3' smoke.txt
 
       - name: Package (sans installateur)
         run: npx electron-builder --dir

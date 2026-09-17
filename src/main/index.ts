@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { appendFileSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { IPC } from '@shared/ipc';
@@ -15,6 +16,9 @@ const isDev = !!process.env.ELECTRON_RENDERER_URL;
  */
 const isSmoke = process.env.EPIKODI_SMOKE === '1';
 const smokeFile = process.env.EPIKODI_SMOKE_FILE;
+/** EPIKODI_SMOKE_OUT=<fichier> : le rapport y est aussi écrit de façon synchrone (stdout vers un
+ * pipe est asynchrone sous Linux/Windows et peut être perdu à la sortie du processus). */
+const smokeOut = process.env.EPIKODI_SMOKE_OUT;
 /** EPIKODI_SMOKE_SEEK=<s> : après ouverture, demande un seek à cette position avant le rapport. */
 const smokeSeek = Number(process.env.EPIKODI_SMOKE_SEEK ?? 0);
 
@@ -27,6 +31,11 @@ registerMediaScheme();
 function mediaFileFromArgs(argv: string[]): string | null {
   const candidate = argv.slice(isDev ? 2 : 1).find((a) => !a.startsWith('-') && isSupported(a));
   return candidate ? resolve(candidate) : null;
+}
+
+function smokeLog(line: string): void {
+  console.log(line);
+  if (smokeOut) appendFileSync(smokeOut, line + '\n');
 }
 
 function sendOpenFile(path: string): void {
@@ -51,7 +60,7 @@ async function smokeSeekTo(seconds: number): Promise<void> {
       res('value=' + seek.value);
     }, 50));
   })()`)) as string;
-  console.log(`SMOKE_SEEK ${r}`);
+  smokeLog(`SMOKE_SEEK ${r}`);
 }
 
 async function reportSmokeMedia(): Promise<void> {
@@ -67,8 +76,8 @@ async function reportSmokeMedia(): Promise<void> {
       ' error=' + (v.error ? v.error.code : 0) +
       ' text="' + (document.querySelector('.stage .text')?.textContent ?? '') + '"';
   })()`)) as string;
-  console.log(`SMOKE_MEDIA ${r}`);
-  app.quit();
+  smokeLog(`SMOKE_MEDIA ${r}`);
+  setTimeout(() => app.quit(), 200);
 }
 
 function createWindow(): void {
@@ -95,7 +104,7 @@ function createWindow(): void {
       pendingFile = null;
     }
     if (isSmoke) {
-      console.log('SMOKE_OK');
+      smokeLog('SMOKE_OK');
       if (smokeFile) {
         mainWindow?.webContents.send(IPC.openFile, resolve(smokeFile));
         if (smokeSeek > 0) {
