@@ -20,6 +20,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.9.*'   # 6.8.x lie le framework AGL, absent des SDK Xcode >= 15 (macos-latest)
+          modules: 'qtmultimedia'
           cache: true
 
       - name: Installer Ninja
@@ -31,7 +32,7 @@ jobs:
 
       - name: Dependances Linux
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libpulse-dev
 
       - name: Configurer
         run: cmake --preset ci

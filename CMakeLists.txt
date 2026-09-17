@@ -14,7 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # pour clang-tidy / IDE
 option(EPIKODI_BUILD_TESTS "Compiler les tests" ON)
 option(EPIKODI_WARNINGS_AS_ERRORS "Traiter les warnings comme des erreurs" OFF)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Multimedia)
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0001 NEW)  # prefixe de ressource /qt/qml pour les modules QML
 qt_policy(SET QTP0004 NEW)  # qmldir genere pour les sous-dossiers QML (components/)

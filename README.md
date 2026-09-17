@@ -57,6 +57,17 @@ En build **Debug**, l'application charge les `.qml` depuis `src/ui/` et **rechar
 automatiquement à chaque sauvegarde** (`src/app/QmlHotReloader`). En Release, les QML sont
 compilés et embarqués dans le binaire.
 
+### Lecture d'un média
+
+```bash
+./build/debug/src/epikodi ~/Vidéos/film.mkv      # ouvre directement le lecteur
+```
+
+Dans la section **Lecteur** : `Ctrl+O` ouvre un fichier, `Espace` lecture/pause, `←`/`→` ±10 s,
+`↑`/`↓` volume, `M` muet. Le décodage est assuré par **Qt Multimedia (backend FFmpeg)** : H.264,
+HEVC, VP9, AV1, AAC, AC3, DTS, MP3, FLAC… avec accélération matérielle automatique (VAAPI /
+D3D11 / VideoToolbox — forçable via `QT_FFMPEG_DECODING_HW_DEVICE_TYPES`).
+
 ### Build Release et tests
 
 ```bash
@@ -74,9 +85,11 @@ cmake --preset ci && cmake --build --preset ci && ctest --preset ci   # warnings
 │   ├── main.cpp            Point d'entrée
 │   ├── app/                Infrastructure applicative (QmlHotReloader…)
 │   ├── core/               Bibliothèque `epikodi_core` : logique métier sans UI (Version…)
-│   └── ui/                 Module QML `Epikodi.Ui` (Main.qml, components/)
+│   ├── media/              Module `Epikodi.Media` : `Player` (Qt Multimedia/FFmpeg), `MediaFormats`
+│   └── ui/                 Module QML `Epikodi.Ui` (Main.qml, PlayerView.qml, components/)
 ├── assets/                 Icônes, polices, images embarquées
 ├── tests/                  Tests Qt Test (une cible par fichier, `epikodi_add_test`)
+│   └── fixtures/           Médias de test générés par ffmpeg (MP4 H.264/AAC, MKV HEVC/AC3, MP3, FLAC…)
 ├── docs/
 │   ├── adr/                Architecture Decision Records
 │   └── benchmark-stack.md  Benchmark Electron / Tauri / Qt
@@ -92,7 +105,8 @@ cmake --preset ci && cmake --build --preset ci && ctest --preset ci   # warnings
   `epikodi`, un composant = `Nom.h` + `Nom.cpp`. `clang-tidy` configuré (`.clang-tidy`).
 - **QML** : un composant par fichier en `PascalCase.qml`, 2 espaces, propriétés `required`
   pour les données de délégué, pas de logique métier dans le QML (elle vit dans `core/`).
-- **Dépendances entre couches** : `ui` → `app` → `core`. `core` ne dépend jamais de Qt Quick.
+- **Dépendances entre couches** : `ui` → `app` → `media` → `core`. `core` et `media` ne dépendent
+  jamais de Qt Quick ; l'UI ne parle à Qt Multimedia qu'à travers `Epikodi.Media.Player`.
 - **Tests** : tout ce qui est dans `core/` est testable sans UI ; un `test_<sujet>.cpp` par sujet.
 - **Commits** : [Conventional Commits](https://www.conventionalcommits.org/fr/) en français
   (`feat:`, `fix:`, `docs:`, `build:`, `ci:`, `test:`), référence à l'issue en fin de sujet.
@@ -100,8 +114,9 @@ cmake --preset ci && cmake --build --preset ci && ctest --preset ci   # warnings
 
 ## Statut
 
-**v0.1 — Fondations** (issue #1) : stack choisie, squelette Qt/CMake, hot-reload, tests, CI.
-Prochaine étape : v1 — MVP (lecteur, indexation, base de métadonnées, bibliothèque).
+- **v0.1 — Fondations** (#1) : stack choisie, squelette Qt/CMake, hot-reload, tests, CI ✔
+- **v1 — MVP** : décodage et lecteur (#2) ✔ · indexation (#4), base de métadonnées (#9),
+  bibliothèque (#13) à venir.
 
 ## Licence
 

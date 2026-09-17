@@ -1,4 +1,5 @@
 add_subdirectory(core)
+add_subdirectory(media)
 add_subdirectory(ui)
 
 qt_add_executable(epikodi
@@ -8,6 +9,7 @@ qt_add_executable(epikodi
 )
 target_link_libraries(epikodi PRIVATE
     epikodi_core
+    epikodi_mediaplugin
     epikodi_uiplugin
     epikodi_warnings
     Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2

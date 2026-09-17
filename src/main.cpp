@@ -1,6 +1,8 @@
 #include "app/QmlHotReloader.h"
 #include "core/Version.h"
 
+#include <QCommandLineParser>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
@@ -15,7 +17,19 @@ int main(int argc, char* argv[]) {
     // Style non natif : rend identique sur les 3 OS et entierement personnalisable (themes).
     QQuickStyle::setStyle("Basic");
 
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Centre multimédia EPIKODI");
+    parser.addHelpOption();
+    parser.addVersionOption();
+    parser.addPositionalArgument("fichier", "Média à ouvrir au démarrage (optionnel).",
+                                 "[fichier]");
+    parser.process(app);
+
     QQmlApplicationEngine engine;
+    if (const QStringList args = parser.positionalArguments(); !args.isEmpty()) {
+        engine.setInitialProperties(
+            {{"initialFile", QUrl::fromLocalFile(QFileInfo(args.first()).absoluteFilePath())}});
+    }
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         [] { QCoreApplication::exit(EXIT_FAILURE); }, Qt::QueuedConnection);

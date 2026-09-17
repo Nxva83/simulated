@@ -86,5 +86,10 @@ lecture multimédia via **Qt Multimedia (backend FFmpeg)**, build **CMake + Ninj
 
 ## Révision
 
-Cet ADR sera réévalué si le spike vidéo de l'issue #2 échoue, ou si la composition de l'équipe
-change radicalement (majorité de profils web sans C++).
+**2026-09-17 — Spike vidéo validé (issue #2).** Un MKV HEVC + AC3 (`tests/fixtures/pattern-hevc-ac3.mkv`)
+est décodé et rendu par Qt Multimedia 6.11 / FFmpeg 9 dans `VideoOutput` ; le test
+`TestPlayer::loadsMkvHevcAc3` le vérifie en CI. La condition de repli sur libmpv n'est pas
+déclenchée : la décision est confirmée.
+
+Cet ADR sera réévalué si la composition de l'équipe change radicalement (majorité de profils web
+sans C++).
