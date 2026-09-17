@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "epikodi-bench-tauri",
+  "version": "0.1.0",
+  "identifier": "fr.epitech.epikodi.bench",
+  "build": { "frontendDist": "../common" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{ "title": "EPIKODI bench (Tauri)", "width": 1024, "height": 640 }],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false }
+}

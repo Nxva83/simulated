@@ -1,0 +1,14 @@
+{
+  "name": "epikodi-bench-electron",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "rm -rf common && cp -r ../common common && electron-packager . --out=out --overwrite --platform=linux --arch=x64"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^44.4.1"
+  }
+}

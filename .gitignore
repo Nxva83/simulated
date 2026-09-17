@@ -141,3 +141,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Benchmark de stack (artefacts de build)
+benchmark/tauri/target/
+benchmark/tauri/gen/
+benchmark/qt/build/
+benchmark/electron/out/
+benchmark/results/*.log
+benchmark/electron/common/
+__pycache__/
