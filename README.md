@@ -65,6 +65,20 @@ Chaque fichier ouvert est enregistré dans la bibliothèque (`<userData>/epikodi
 **reprend où elle s'était arrêtée**, un média lu à plus de 90 % est marqué **vu**, le volume et les
 favoris sont mémorisés.
 
+### Interface
+
+- **Accueil** : Reprendre, Ajouts récents, Récemment lus, Favoris.
+- **Films / Musique** : grille avec vignettes, tri (titre, ajout, durée, dernière lecture), filtres
+  (non vus, en cours, vus, favoris) et filtre texte.
+- **Fiche** : visuel, infos techniques, reprise ou lecture depuis le début, vu / non vu, favori,
+  note sur 10 (synopsis et casting arriveront avec TMDB, #8).
+- **Recherche** (`/`) : plein texte sur titres, artistes, albums et dossiers.
+- **Clavier** : flèches (navigation spatiale), Entrée, Échap / Retour arrière = retour, `P` sur une
+  carte = lecture directe, `Ctrl+O` ouvrir un fichier, `Ctrl+T` mode TV.
+- **Manette** : croix / stick = flèches, A = Entrée, B = Retour, Y = Recherche, Start = lecture/pause,
+  gâchettes = ±10 s.
+- **Mode TV** (Réglages ou `Ctrl+T`) : texte et cartes agrandis pour un usage à distance.
+
 ### Bibliothèque
 
 **Réglages → Ajouter un dossier…** : le dossier est parcouru en tâche de fond (extension **et**
@@ -107,7 +121,8 @@ npm run dist                                       # AppImage/deb, NSIS, dmg
 │   │                         watcher chokidar, orchestration (ScanManager)
 │   ├── preload/              Pont sécurisé (contextBridge) → window.epikodi
 │   ├── shared/               Code partagé main/renderer : formats, erreurs, codecs, contrat IPC
-│   └── renderer/src/         UI React : App, Sidebar, PlayerView (hook usePlayer), LibraryView, SettingsView
+│   └── renderer/src/         UI React : App (routeur), Sidebar, Home/Library/Detail/Search/Settings/Player,
+│                             lib/navigation (historique), hooks useSpatialNavigation + useGamepad
 ├── tests/
 │   ├── unit/                 Tests Vitest
 │   └── fixtures/             Médias de test générés par ffmpeg (MP4 H.264/AAC, MKV HEVC/AC3, MP3, FLAC…)

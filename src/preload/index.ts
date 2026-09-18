@@ -20,6 +20,9 @@ const api: EpikodiApi = {
     list: (opts) => ipcRenderer.invoke(IPC.libraryList, opts ?? {}),
     search: (q, limit) => ipcRenderer.invoke(IPC.librarySearch, q, limit),
     file: (id) => ipcRenderer.invoke(IPC.libraryFile, id),
+    searchItems: (q, limit) => ipcRenderer.invoke(IPC.librarySearchItems, q, limit),
+    home: () => ipcRenderer.invoke(IPC.libraryHome),
+    detail: (id) => ipcRenderer.invoke(IPC.libraryDetail, id),
   },
   playback: {
     get: (ref) => ipcRenderer.invoke(IPC.playbackGet, ref),

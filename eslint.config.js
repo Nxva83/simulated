@@ -13,7 +13,8 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': 'warn',
+      // Les fournisseurs de contexte exportent aussi leur hook : accepté.
+      'react-refresh/only-export-components': ['warn', { allowExportNames: ['useNav'] }],
     },
   },
   prettier,

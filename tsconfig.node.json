@@ -10,13 +10,16 @@
     "skipLibCheck": true,
     "composite": true,
     "isolatedModules": true,
-    "paths": { "@shared/*": ["./src/shared/*"] }
+    "paths": {
+      "@shared/*": ["./src/shared/*"]
+    }
   },
   "include": [
     "electron.vite.config.ts",
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
+    "src/renderer/src/lib/format.ts",
     "tests/**/*"
   ]
 }

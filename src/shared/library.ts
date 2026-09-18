@@ -49,12 +49,39 @@ export interface MediaFileInput {
 
 export interface ListOptions {
   kind?: MediaKind;
-  sort?: 'title' | 'added' | 'duration';
+  sort?: 'title' | 'added' | 'duration' | 'lastPlayed';
   order?: 'asc' | 'desc';
   limit?: number;
   offset?: number;
   /** Exclure les fichiers disparus du disque. */
   presentOnly?: boolean;
+  /** Filtre sur l'état de lecture. */
+  filter?: 'all' | 'unwatched' | 'watched' | 'favorites' | 'inProgress';
+  /** Recherche locale (préfixe de mot, via l'index plein texte). */
+  query?: string;
+}
+
+/** Fichier média enrichi de son état de lecture et, pour l'audio, de sa piste. */
+export interface LibraryItem extends MediaFile {
+  /** « Artiste — Album » pour l'audio, nom du dossier sinon. */
+  subtitle: string | null;
+  state: PlaybackState | null;
+}
+
+export interface HomeData {
+  /** Commencés et non terminés, du plus récent au plus ancien. */
+  continueWatching: LibraryItem[];
+  recentlyAdded: LibraryItem[];
+  recentlyPlayed: LibraryItem[];
+  favorites: LibraryItem[];
+  counts: { video: number; audio: number };
+}
+
+export interface MediaDetail {
+  item: LibraryItem;
+  track: Track | null;
+  album: Album | null;
+  artist: Artist | null;
 }
 
 export interface PlaybackState {

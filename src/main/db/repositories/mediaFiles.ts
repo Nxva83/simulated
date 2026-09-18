@@ -53,6 +53,7 @@ const SORT: Record<NonNullable<ListOptions['sort']>, string> = {
   title: 'title COLLATE NOCASE',
   added: 'added_at',
   duration: 'duration',
+  lastPlayed: 'added_at', // pas d'état de lecture ici : voir ItemsRepository
 };
 
 /** Index des fichiers médias + entretien de l'index de recherche. */

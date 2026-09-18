@@ -71,8 +71,12 @@ jobs:
           #    rejeté, unsupported.xyz ignoré (pas une extension média), 2 vignettes générées.
           smoke EPIKODI_SMOKE_SOURCE=tests/fixtures EPIKODI_THUMBS_DIR=smoke-thumbs
           grep -E 'SMOKE_SCAN indexed=2 skipped=2 rejected=1 files=4 thumbs=2 error=none' smoke.txt
-          # 5) La bibliothèque SQLite a bien enregistré les deux fichiers lus et leur état de lecture.
-          node -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('smoke-epikodi.db'); const f=db.prepare('select count(*) c from media_files').get().c; const p=db.prepare('select count(*) c from playback_state').get().c; console.log('media_files='+f+' playback_state='+p); process.exit(f===4&&p===2?0:1)"
+          # 5) Parcours utilisateur au clavier sur la bibliothèque indexée : accueil → flèche → Entrée
+          #    (fiche) → Lire (vidéo en lecture) → Échap → « / » recherche « pattern » (2 résultats).
+          smoke EPIKODI_SMOKE_UI=1 EPIKODI_SMOKE_QUERY=pattern EPIKODI_THUMBS_DIR=smoke-thumbs
+          grep -E 'SMOKE_UI detail="[^"]+" playing=true search=2' smoke.txt
+          # 6) La bibliothèque SQLite a bien enregistré les fichiers et leur état de lecture.
+          node -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('smoke-epikodi.db'); const f=db.prepare('select count(*) c from media_files').get().c; const p=db.prepare('select count(*) c from playback_state').get().c; console.log('media_files='+f+' playback_state='+p); process.exit(f===4&&p>=2?0:1)"
 
       - name: Package (sans installateur)
         run: npx electron-builder --dir

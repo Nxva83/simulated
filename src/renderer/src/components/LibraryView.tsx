@@ -1,81 +1,135 @@
 import { useEffect, useState } from 'react';
-import type { MediaFile, MediaKind } from '@shared/library';
+import type { LibraryItem, ListOptions, MediaKind } from '@shared/library';
+import { useNav } from '../lib/navigation';
+import MediaCard from './MediaCard';
 
 interface Props {
-  title: string;
   kind: MediaKind;
-  onPlay: (file: MediaFile) => void;
+  onPlay: (item: LibraryItem) => void;
 }
 
-function formatDuration(s: number | null): string {
-  if (!s) return '';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h} h ${m.toString().padStart(2, '0')}` : `${m} min`;
-}
+const SORTS: { value: NonNullable<ListOptions['sort']>; label: string }[] = [
+  { value: 'title', label: 'Titre' },
+  { value: 'added', label: 'Ajout' },
+  { value: 'duration', label: 'Durée' },
+  { value: 'lastPlayed', label: 'Dernière lecture' },
+];
+const FILTERS: { value: NonNullable<ListOptions['filter']>; label: string }[] = [
+  { value: 'all', label: 'Tous' },
+  { value: 'unwatched', label: 'Non vus' },
+  { value: 'inProgress', label: 'En cours' },
+  { value: 'watched', label: 'Vus' },
+  { value: 'favorites', label: 'Favoris' },
+];
 
-/**
- * Grille minimale de la bibliothèque (vignette, titre, durée) — la vraie interface arrive avec #13.
- * Se recharge quand l'indexation ajoute ou retire des fichiers.
- */
-export default function LibraryView({ title, kind, onPlay }: Props) {
-  const [files, setFiles] = useState<MediaFile[]>([]);
-  const [loaded, setLoaded] = useState(false);
+/** Bibliothèque (Films / Musique) : grille avec tri, filtres et recherche locale. */
+export default function LibraryView({ kind, onPlay }: Props) {
+  const nav = useNav();
+  const [items, setItems] = useState<LibraryItem[] | null>(null);
+  const [sort, setSort] = useState<NonNullable<ListOptions['sort']>>('title');
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [filter, setFilter] = useState<NonNullable<ListOptions['filter']>>('all');
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const title = kind === 'video' ? 'Films' : 'Musique';
 
   useEffect(() => {
     let alive = true;
     const load = () =>
-      void window.epikodi.library
-        .list({ kind, sort: 'title', presentOnly: true, limit: 1000 })
-        .then((f) => {
-          if (alive) {
-            setFiles(f);
-            setLoaded(true);
-          }
-        });
-    load();
-    const off = window.epikodi.onLibraryChanged(load);
+      window.epikodi.library
+        .list({ kind, sort, order, filter, query, presentOnly: true, limit: 2000 })
+        .then((f) => alive && setItems(f))
+        .catch((e: Error) => alive && setError(e.message));
+    void load();
+    const off = window.epikodi.onLibraryChanged(() => void load());
     return () => {
       alive = false;
       off();
     };
-  }, [kind]);
+  }, [kind, sort, order, filter, query]);
 
-  if (loaded && files.length === 0) {
-    return (
-      <div className="placeholder">
-        <h1>{title}</h1>
-        <p>Bibliothèque vide — ajoutez un dossier dans les réglages.</p>
-      </div>
-    );
-  }
+  const open = (i: LibraryItem) => nav.go({ view: 'detail', id: i.id });
 
   return (
-    <div className="library">
-      <header>
+    <div className="library view">
+      <header className="view-header">
         <h1>{title}</h1>
-        <span className="count">
-          {files.length} élément{files.length > 1 ? 's' : ''}
-        </span>
-      </header>
-      <div className="grid">
-        {files.map((f) => (
-          <button key={f.id} className="card" onClick={() => onPlay(f)} title={f.path}>
-            <div className={`thumb ${kind}`}>
-              {f.thumbnailUrl ? (
-                <img src={f.thumbnailUrl} alt="" loading="lazy" />
-              ) : (
-                <span>{kind === 'audio' ? '♫' : '▶'}</span>
-              )}
-            </div>
-            <div className="card-title">{f.title}</div>
-            <div className="card-meta">
-              {formatDuration(f.duration)}
-              {f.height ? ` · ${f.height}p` : ''}
-            </div>
+        {items && (
+          <span className="count">
+            {items.length} élément{items.length > 1 ? 's' : ''}
+          </span>
+        )}
+        <div className="toolbar">
+          <input
+            type="search"
+            placeholder={`Filtrer ${title.toLowerCase()}…`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Filtrer"
+          />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as typeof filter)}
+            aria-label="Filtre"
+          >
+            {FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            aria-label="Tri"
+          >
+            {SORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="icon-btn"
+            title={order === 'asc' ? 'Croissant' : 'Décroissant'}
+            onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
+          >
+            {order === 'asc' ? '↑' : '↓'}
           </button>
-        ))}
-      </div>
+        </div>
+      </header>
+      {error && (
+        <div className="placeholder error">
+          <p>{error}</p>
+        </div>
+      )}
+      {!error && !items && (
+        <div className="placeholder">
+          <div className="spinner" />
+          <p>Chargement…</p>
+        </div>
+      )}
+      {items && items.length === 0 && (
+        <div className="placeholder">
+          {query || filter !== 'all' ? (
+            <p>Aucun résultat pour ces critères.</p>
+          ) : (
+            <>
+              <p>Bibliothèque vide — ajoutez un dossier dans les réglages.</p>
+              <button className="btn primary" onClick={() => nav.go({ view: 'settings' })}>
+                Ajouter un dossier
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {items && items.length > 0 && (
+        <div className="grid">
+          {items.map((i) => (
+            <MediaCard key={i.id} item={i} onOpen={open} onPlay={onPlay} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

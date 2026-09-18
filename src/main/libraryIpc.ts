@@ -91,8 +91,25 @@ export function registerLibraryIpc(): void {
 
   ipcMain.handle(IPC.libraryRegisterFile, (_e, path: string) => registerFile(path));
   ipcMain.handle(IPC.libraryList, (_e, opts: ListOptions) =>
-    withThumbnails(lib().files.list(opts)),
+    withThumbnails(lib().items.list(opts)),
   );
+  ipcMain.handle(IPC.librarySearchItems, (_e, q: string, limit?: number) =>
+    withThumbnails(lib().items.search(q, limit)),
+  );
+  ipcMain.handle(IPC.libraryHome, () => {
+    const h = lib().items.home();
+    return {
+      ...h,
+      continueWatching: withThumbnails(h.continueWatching),
+      recentlyAdded: withThumbnails(h.recentlyAdded),
+      recentlyPlayed: withThumbnails(h.recentlyPlayed),
+      favorites: withThumbnails(h.favorites),
+    };
+  });
+  ipcMain.handle(IPC.libraryDetail, (_e, id: number) => {
+    const d = lib().items.detail(id);
+    return d ? { ...d, item: withThumbnails([d.item])[0] } : null;
+  });
   ipcMain.handle(IPC.librarySearch, (_e, q: string, limit?: number) =>
     lib().files.search(q, limit),
   );

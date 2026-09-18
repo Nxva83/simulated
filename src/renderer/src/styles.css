@@ -395,3 +395,357 @@ button.icon-btn:disabled {
 .scan.running {
   color: #b9d4ff;
 }
+
+/* ---------- Focus visible (clavier / manette) ---------- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.card:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 0;
+  transform: scale(1.03);
+  z-index: 1;
+}
+.nav-item .icon {
+  width: 20px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* ---------- Vues ---------- */
+.view {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+.view-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.view-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+.view-header .count {
+  color: var(--muted);
+  font-size: 13px;
+}
+.toolbar {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.toolbar input[type='search'],
+.search-input {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 14px;
+  min-width: 200px;
+}
+.toolbar select,
+.settings select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.search-input {
+  width: 100%;
+  font-size: 18px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.hint.center {
+  text-align: center;
+  color: var(--muted);
+}
+button.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+button.btn.primary:hover {
+  filter: brightness(1.1);
+}
+.placeholder.error {
+  color: var(--danger);
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Cartes ---------- */
+.card {
+  position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: 180px 190px;
+  transition: transform 0.12s;
+}
+.card .thumb {
+  position: relative;
+}
+.card .thumb .glyph {
+  font-size: 32px;
+}
+.badge {
+  position: absolute;
+  top: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.badge.watched {
+  right: 6px;
+  background: rgba(61, 139, 253, 0.9);
+  color: #fff;
+}
+.badge.fav {
+  left: 6px;
+  background: rgba(255, 196, 0, 0.9);
+  color: #221;
+}
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+}
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.card-meta .sub {
+  color: #b0b0bf;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Accueil (rangées horizontales) ---------- */
+.row-section {
+  margin-bottom: 28px;
+}
+.row-section h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.row-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+  scroll-snap-type: x proximity;
+}
+.row-scroll .card {
+  flex: 0 0 200px;
+  scroll-snap-align: start;
+}
+.row-scroll .card.audio {
+  flex-basis: 160px;
+}
+
+/* ---------- Fiche ---------- */
+.detail .back {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -8px 0 12px -8px;
+  border-radius: 6px;
+}
+.detail .back:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+.detail-body {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+.poster {
+  position: relative;
+  flex: 0 0 360px;
+  aspect-ratio: 16 / 9;
+  background: #0a0a0d;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+.poster.audio {
+  flex-basis: 260px;
+  aspect-ratio: 1;
+}
+.poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.poster .glyph {
+  font-size: 64px;
+}
+.detail-main {
+  flex: 1;
+  min-width: 0;
+}
+.detail-main h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: 600;
+}
+.detail-main .subtitle {
+  margin: 0 0 4px;
+  color: #b0b0bf;
+  font-size: 16px;
+}
+.detail-main .meta {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 20px;
+}
+.rating .label {
+  color: var(--muted);
+  font-size: 13px;
+  margin-right: 8px;
+}
+.rating .star {
+  background: transparent;
+  border: 0;
+  color: var(--dim);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+.rating .star.on {
+  color: #ffc400;
+}
+.rating .value {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.detail section h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 18px 0 6px;
+}
+.detail .hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+.facts dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+.facts dt {
+  color: var(--muted);
+}
+.facts dd {
+  margin: 0;
+}
+.facts dd.path {
+  word-break: break-all;
+  color: #b0b0bf;
+}
+@media (max-width: 900px) {
+  .detail-body {
+    flex-direction: column;
+  }
+  .poster {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+/* ---------- Mode TV (10-foot) ---------- */
+html.tv {
+  font-size: 18px;
+}
+html.tv .sidebar {
+  width: 260px;
+}
+html.tv .nav-item {
+  height: 52px;
+  font-size: 19px;
+}
+html.tv .grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 22px;
+}
+html.tv .row-scroll .card {
+  flex-basis: 280px;
+}
+html.tv .card-title {
+  font-size: 17px;
+  padding-top: 12px;
+}
+html.tv .card-meta {
+  font-size: 14px;
+}
+html.tv .view-header h1 {
+  font-size: 32px;
+}
+html.tv .card:focus-visible {
+  outline-width: 4px;
+  transform: scale(1.05);
+}
+html.tv button.btn {
+  font-size: 17px;
+  padding: 10px 18px;
+}
+html.tv .player .controls {
+  height: 100px;
+}

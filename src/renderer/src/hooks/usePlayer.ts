@@ -209,7 +209,7 @@ export function usePlayer() {
   }, [load]);
 
   const open = useCallback(
-    async (path: string) => {
+    async (path: string, fromStart = false) => {
       const v = videoRef.current;
       if (!v) return;
       const fail = (errorMessage: string) => {
@@ -241,7 +241,7 @@ export function usePlayer() {
       try {
         const file = await window.epikodi.library.registerFile(path);
         ref = { type: 'file', id: file.id };
-        resume = await window.epikodi.playback.resumePosition(ref);
+        resume = fromStart ? 0 : await window.epikodi.playback.resumePosition(ref);
         const state = await window.epikodi.playback.started(ref, info.duration ?? null);
         favorite = state.favorite;
       } catch {

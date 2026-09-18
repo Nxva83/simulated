@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePlayer } from '../hooks/usePlayer';
+import { formatTime } from '../lib/format';
+import type { PlayRequest } from '../lib/play';
 
 interface Props {
-  /** Fichier à ouvrir (argument CLI, association de fichiers). */
-  requestedFile: string | null;
+  /** Demande de lecture (fiche, accueil, argument CLI…). */
+  request: PlayRequest | null;
   active: boolean;
-}
-
-function formatTime(seconds: number): string {
-  const total = Math.max(0, Math.floor(seconds || 0));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const mm = h > 0 && m < 10 ? `0${m}` : `${m}`;
-  const ss = s < 10 ? `0${s}` : `${s}`;
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 /** Barre de progression : la position suit la lecture, sauf pendant le glisser. */
@@ -57,7 +49,7 @@ function SeekBar({
   );
 }
 
-export default function PlayerView({ requestedFile, active }: Props) {
+export default function PlayerView({ request, active }: Props) {
   const {
     videoRef,
     state,
@@ -74,8 +66,8 @@ export default function PlayerView({ requestedFile, active }: Props) {
   const hasMedia = state.status !== 'no-media' && state.status !== 'error';
 
   useEffect(() => {
-    if (requestedFile) void open(requestedFile);
-  }, [requestedFile, open]);
+    if (request) void open(request.path, request.fromStart);
+  }, [request, open]);
 
   useEffect(() => {
     if (active) rootRef.current?.focus();

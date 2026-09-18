@@ -8,8 +8,13 @@ const KINDS: { value: SourceKind; label: string }[] = [
   { value: 'mixed', label: 'Mixte' },
 ];
 
-/** Réglages : dossiers sources et indexation, sauvegarde / restauration de la bibliothèque. */
-export default function SettingsView() {
+interface Props {
+  tvMode: boolean;
+  onToggleTv: () => void;
+}
+
+/** Réglages : dossiers sources et indexation, affichage, sauvegarde / restauration. */
+export default function SettingsView({ tvMode, onToggleTv }: Props) {
   const [sources, setSources] = useState<Source[]>([]);
   const [progress, setProgress] = useState<Record<number, ScanProgress>>({});
   const [kind, setKind] = useState<SourceKind>('movies');
@@ -123,6 +128,19 @@ export default function SettingsView() {
             );
           })}
         </ul>
+      </section>
+
+      <section>
+        <h2>Affichage</h2>
+        <label className="row">
+          <input type="checkbox" checked={tvMode} onChange={onToggleTv} />
+          Mode TV — texte et cartes plus grands, lisibles à distance (Ctrl+T)
+        </label>
+        <p className="hint">
+          Navigation : flèches pour se déplacer, Entrée pour ouvrir, Échap / Retour arrière pour
+          revenir, « / » pour chercher, P sur une carte pour lire directement. Manette : croix /
+          stick, A = Entrée, B = Retour, Y = Recherche, Start = lecture/pause.
+        </p>
       </section>
 
       <section>

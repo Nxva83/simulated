@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { IPC } from '@shared/ipc';
@@ -23,6 +23,9 @@ const smokeOut = process.env.EPIKODI_SMOKE_OUT;
 /** EPIKODI_SMOKE_SOURCE=<dossier> : l'ajoute comme source, attend la fin de l'indexation et
  * rapporte `SMOKE_SCAN indexed=<n> skipped=<n> rejected=<n> files=<n> thumbs=<n>`. */
 const smokeSource = process.env.EPIKODI_SMOKE_SOURCE;
+/** EPIKODI_SMOKE_UI=1 : parcours clavier accueil → fiche → lecture, puis recherche ; rapporte
+ * `SMOKE_UI detail=<titre> playing=<bool> search=<n>`. Suppose une bibliothèque déjà indexée. */
+const smokeUi = process.env.EPIKODI_SMOKE_UI === '1';
 /** EPIKODI_SMOKE_SEEK=<s> : après ouverture, demande un seek à cette position avant le rapport. */
 const smokeSeek = Number(process.env.EPIKODI_SMOKE_SEEK ?? 0);
 
@@ -57,6 +60,75 @@ function sendOpenFile(path: string): void {
   } else {
     pendingFile = path;
   }
+}
+
+/** Exécute du JS dans la page et attend que le résultat soit vrai (ou expire). */
+async function waitFor(js: string, timeoutMs = 8000): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const r = (await mainWindow?.webContents.executeJavaScript(js)) as string | boolean | null;
+    if (r) return String(r);
+    await new Promise((res) => setTimeout(res, 100));
+  }
+  return '';
+}
+
+/** EPIKODI_SMOKE_SHOTS=<dossier> : capture la fenêtre à chaque étape du parcours. */
+async function shot(name: string): Promise<void> {
+  const dir = process.env.EPIKODI_SMOKE_SHOTS;
+  if (!dir || !mainWindow) return;
+  await new Promise((r) => setTimeout(r, 400));
+  const img = await mainWindow.webContents.capturePage();
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${name}.png`), img.toPNG());
+}
+
+/** Parcours utilisateur au clavier : accueil → fiche (Entrée) → lecture → recherche. */
+async function smokeUiFlow(): Promise<void> {
+  const key = (k: string) =>
+    mainWindow?.webContents.executeJavaScript(
+      `(() => { const t = document.activeElement || document.body;
+         const e = new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true, cancelable: true });
+         t.dispatchEvent(e); if (${JSON.stringify(k)} === 'Enter' && !e.defaultPrevented) t.click(); return true; })()`,
+    );
+  await waitFor(`!!document.querySelector('.home .card')`);
+  await mainWindow?.webContents.executeJavaScript(
+    `document.querySelector('.home .card').focus(); true`,
+  );
+  await key('ArrowRight'); // navigation spatiale : carte suivante
+  await shot('1-accueil');
+  await key('Enter'); // ouvre la fiche
+  const detail = await waitFor(`document.querySelector('.detail h1')?.textContent || ''`);
+  await waitFor(`!!document.querySelector('.detail .actions .btn.primary')`);
+  await shot('2-fiche');
+  await mainWindow?.webContents.executeJavaScript(
+    `document.querySelector('.detail .actions .btn.primary').click(); true`,
+  );
+  const playing = await waitFor(
+    `(() => { const v = document.querySelector('video'); return v && !v.paused && v.currentTime > 0.5; })()`,
+  );
+  await shot('3-lecture');
+  await key('Escape'); // retour à la fiche
+  await waitFor(`!!document.querySelector('.detail')`);
+  await key('/'); // recherche
+  await waitFor(`!!document.querySelector('.search-input')`);
+  await mainWindow?.webContents.executeJavaScript(`(() => {
+    const i = document.querySelector('.search-input');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(process.env.EPIKODI_SMOKE_QUERY ?? 'pattern')});
+    i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+  const results = await waitFor(`document.querySelectorAll('.search .card').length || ''`);
+  await shot('4-recherche');
+  // Bibliothèque Films en mode TV.
+  await mainWindow?.webContents.executeJavaScript(
+    `(() => { [...document.querySelectorAll('.nav-item')].find((b) => b.textContent.includes('Films')).click(); return true; })()`,
+  );
+  await waitFor(`!!document.querySelector('.library .card')`);
+  await mainWindow?.webContents.executeJavaScript(
+    `document.documentElement.classList.add('tv'); document.querySelector('.library .card').focus(); true`,
+  );
+  await shot('5-films-mode-tv');
+  smokeLog(`SMOKE_UI detail="${detail}" playing=${playing === 'true'} search=${results || 0}`);
+  setTimeout(() => app.quit(), 200);
 }
 
 /** Indexe un dossier et rapporte le résultat (CI). */
@@ -159,6 +231,8 @@ function createWindow(): void {
       smokeLog('SMOKE_OK');
       if (smokeSource) {
         void smokeScan(resolve(smokeSource));
+      } else if (smokeUi) {
+        void smokeUiFlow();
       } else if (smokeFile) {
         mainWindow?.webContents.send(IPC.openFile, resolve(smokeFile));
         if (smokeSeek > 0) {

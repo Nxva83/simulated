@@ -1,6 +1,9 @@
 import type { MediaInfo } from './codecs';
 import type {
+  HomeData,
+  LibraryItem,
   ListOptions,
+  MediaDetail,
   MediaFile,
   PlaybackState,
   PlayableRef,
@@ -21,6 +24,9 @@ export const IPC = {
   libraryList: 'library:list',
   librarySearch: 'library:search',
   libraryFile: 'library:file',
+  libraryHome: 'library:home',
+  libraryDetail: 'library:detail',
+  librarySearchItems: 'library:search-items',
   playbackGet: 'playback:get',
   playbackResume: 'playback:resume',
   playbackStarted: 'playback:started',
@@ -68,9 +74,14 @@ export interface EpikodiApi {
   library: {
     /** Enregistre un fichier ouvert (codecs, durée, taille) et retourne son entrée. */
     registerFile(path: string): Promise<MediaFile>;
-    list(opts?: ListOptions): Promise<MediaFile[]>;
+    /** Éléments de bibliothèque (fichier + état + sous-titre), triés / filtrés / paginés. */
+    list(opts?: ListOptions): Promise<LibraryItem[]>;
     search(query: string, limit?: number): Promise<SearchHit[]>;
+    /** Recherche globale résolue en éléments de bibliothèque (dédoublonnés). */
+    searchItems(query: string, limit?: number): Promise<LibraryItem[]>;
     file(id: number): Promise<MediaFile | null>;
+    home(): Promise<HomeData>;
+    detail(id: number): Promise<MediaDetail | null>;
   };
   playback: {
     get(ref: PlayableRef): Promise<PlaybackState | null>;

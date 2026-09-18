@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { backupDatabase, openDatabase, restoreDatabase } from './database';
+import { ItemsRepository } from './repositories/items';
 import { MediaFilesRepository } from './repositories/mediaFiles';
 import { MusicRepository } from './repositories/music';
 import { PlaybackRepository } from './repositories/playback';
@@ -17,6 +18,7 @@ export {
 /** Façade unique sur la base : une instance par application. */
 export class Library {
   readonly files: MediaFilesRepository;
+  readonly items: ItemsRepository;
   readonly music: MusicRepository;
   readonly playback: PlaybackRepository;
   readonly settings: SettingsRepository;
@@ -27,6 +29,7 @@ export class Library {
     readonly path: string,
   ) {
     this.files = new MediaFilesRepository(db);
+    this.items = new ItemsRepository(db);
     this.music = new MusicRepository(db);
     this.playback = new PlaybackRepository(db);
     this.settings = new SettingsRepository(db);
@@ -62,6 +65,7 @@ export class Library {
     // Les dépôts gardent une référence à la connexion : on les recrée après réouverture.
     Object.assign(this, {
       files: new MediaFilesRepository(this.db),
+      items: new ItemsRepository(this.db),
       music: new MusicRepository(this.db),
       playback: new PlaybackRepository(this.db),
       settings: new SettingsRepository(this.db),
